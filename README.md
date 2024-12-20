@@ -63,6 +63,8 @@ name::url::notes
 6. click save to save the table to `data/default.csv`
 7. click load to load the table from `data/default.csv`
 8. auto load `data/default.csv` on page load
+9. DONT FORGET TO MODIFY .gitignore to ignore the data directory!!!
 
 ## Author
 jhfnetboy@gmail.com::spider::spider
+
