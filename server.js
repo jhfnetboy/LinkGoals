@@ -125,7 +125,26 @@ function isDuplicateLink(link1, link2) {
            link1.notes === link2.notes;
 }
 
-// Update the add link endpoint to properly handle notes
+// Add new endpoint to clear CSV file
+app.post('/api/clear', async (req, res) => {
+    try {
+        logSeparator('CLEARING CSV FILE');
+        await ensureDataDir();
+        
+        // Write only the header to the CSV file
+        await csvWriter.writeRecords([]);
+        console.log('CSV file cleared');
+        
+        logSeparator('CSV FILE CLEARED SUCCESSFULLY');
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error clearing CSV:', error);
+        logSeparator('ERROR CLEARING CSV');
+        res.status(500).json({ error: 'Failed to clear CSV file' });
+    }
+});
+
+// Update the add link endpoint to handle the new flow
 app.post('/api/links', async (req, res) => {
     try {
         logSeparator('NEW LINK REQUEST RECEIVED');
@@ -137,7 +156,6 @@ app.post('/api/links', async (req, res) => {
         if (name && name.includes('::')) {
             const parts = name.split('::').map(part => part.trim());
             console.log('Parsing input with format name::url::notes');
-            console.log('Split parts:', parts);
             
             const newName = parts[0];
             let newUrl = parts[1] || '';
@@ -156,16 +174,13 @@ app.post('/api/links', async (req, res) => {
             return res.status(400).json({ error: 'Please use format: name::url::notes' });
         }
 
-        console.log('Processed new link:', newLink);
-
         // Validate required fields
         if (!newLink.name || !newLink.url) {
             return res.status(400).json({ error: 'Name and URL are required' });
         }
 
-        // Read existing links from CSV to check for duplicates
-        const existingLinks = await loadLinksFromCsv(defaultCsvPath);
-        const isDuplicate = existingLinks.some(link => 
+        // Check for duplicates in current links array
+        const isDuplicate = links.some(link => 
             link.name === newLink.name && 
             link.url === newLink.url
         );
@@ -175,11 +190,27 @@ app.post('/api/links', async (req, res) => {
             return res.status(400).json({ error: 'Link already exists' });
         }
 
-        // Add to links array and save to CSV
-        links = [...existingLinks, newLink];
-        await ensureDataDir();
-        await csvWriter.writeRecords(links);
-        console.log('Links saved to CSV automatically');
+        // Add to existing links array
+        links.push(newLink);
+        
+        try {
+            // Create a new csvWriter for each operation to ensure clean write
+            const writer = createCsvWriter({
+                path: defaultCsvPath,
+                header: [
+                    { id: 'name', title: 'NAME' },
+                    { id: 'url', title: 'URL' },
+                    { id: 'notes', title: 'NOTES' }
+                ]
+            });
+
+            // Write all links in one operation
+            await writer.writeRecords(links);
+            console.log('All links saved to CSV successfully');
+        } catch (writeError) {
+            console.error('Error writing to CSV:', writeError);
+            throw writeError;
+        }
 
         logSeparator('LINK ADDED AND SAVED SUCCESSFULLY');
         res.json({ success: true, links: links });
@@ -221,31 +252,47 @@ app.post('/api/save', async (req, res) => {
         const existingLinks = await loadLinksFromCsv(defaultCsvPath);
         console.log('Existing links:', existingLinks);
 
-        // Create a map to store unique links based on name and url
-        const uniqueLinks = new Map();
-        
-        // Process existing links first
+        // Create a unique identifier for each link
+        const getUniqueKey = (link) => `${link.name}::${link.url}`;
+
+        // Use Map to maintain unique entries
+        const uniqueLinksMap = new Map();
+
+        // First add existing links to the map
         existingLinks.forEach(link => {
-            const key = `${link.name}::${link.url}`;
-            uniqueLinks.set(key, link);
+            const key = getUniqueKey(link);
+            uniqueLinksMap.set(key, link);
         });
 
-        // Add new links, overwriting duplicates if they exist
+        // Then add current links, overwriting duplicates if they exist
         links.forEach(link => {
-            const key = `${link.name}::${link.url}`;
-            uniqueLinks.set(key, link);
+            const key = getUniqueKey(link);
+            // Only add if it doesn't exist or if it has different notes
+            const existing = uniqueLinksMap.get(key);
+            if (!existing || existing.notes !== link.notes) {
+                uniqueLinksMap.set(key, link);
+            }
         });
 
         // Convert map back to array
-        const finalLinks = Array.from(uniqueLinks.values());
-        console.log('Unique links to save:', finalLinks);
+        const finalLinks = Array.from(uniqueLinksMap.values());
+        
+        console.log('Final unique links to save:', finalLinks);
 
         if (finalLinks.length > 0) {
+            // Update the in-memory links array first
+            links = [...finalLinks];
+            
+            // Then save to CSV
             await csvWriter.writeRecords(finalLinks);
-            links = finalLinks; // Update the in-memory array
             console.log('Links saved successfully');
             logSeparator('SAVE OPERATION COMPLETED');
-            res.json({ message: 'Links saved successfully', links: finalLinks });
+            
+            // Send back updated links
+            res.json({ 
+                message: 'Links saved successfully', 
+                links: finalLinks 
+            });
         } else {
             console.log('No links to save');
             logSeparator('NO LINKS TO SAVE');

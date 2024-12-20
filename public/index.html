@@ -42,6 +42,9 @@
             padding: 5px;
             width: 300px;
         }
+        #saveButton {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -105,14 +108,17 @@
                 const value = input.value.trim();
                 
                 if (!value) {
-                    alert('Please enter a link in the format: name::url::notes');
+                    alert('Please enter a link in the format: name,url,notes');
                     return;
                 }
+
+                // Convert commas to double colons for backend processing
+                const processedValue = value.replace(/,/g, '::');
 
                 const response = await fetch('/api/links', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: value })
+                    body: JSON.stringify({ name: processedValue })
                 });
 
                 const result = await response.json();
@@ -128,7 +134,7 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert(error.message);
+                alert(error.message.replace(/::/, ',')); // Replace :: with , in error messages
             }
         }
 
@@ -175,15 +181,24 @@
         async function saveLinks() {
             try {
                 const response = await fetch('/api/save', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
                 });
+
+                const result = await response.json();
                 
-                if (response.ok) {
-                    alert('Links saved successfully');
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to save links');
+                }
+
+                // Update the table with the returned links
+                if (result.links) {
+                    updateTable(result.links);
+                    console.log('Links saved successfully');
                 }
             } catch (error) {
-                console.error('Error saving links:', error);
-                alert('Failed to save links');
+                console.error('Error:', error);
+                alert('Failed to save links: ' + error.message);
             }
         }
 
