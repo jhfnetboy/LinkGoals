@@ -26,6 +26,33 @@ const csvWriter = createCsvWriter({
     ]
 });
 
+// Add this at the top with other constants
+const defaultHeader = 'NAME,URL,NOTES\n';
+
+// Add this function to initialize the CSV file if it doesn't exist
+async function initializeCsvFile() {
+    try {
+        // Check if file exists
+        try {
+            await fs.access(defaultCsvPath);
+            console.log('CSV file exists');
+        } catch {
+            // Create file with header if it doesn't exist
+            console.log('Creating new CSV file with header');
+            await fs.writeFile(defaultCsvPath, defaultHeader);
+        }
+
+        // Read file content
+        const content = await fs.readFile(defaultCsvPath, 'utf-8');
+        if (!content.includes('NAME,URL,NOTES')) {
+            console.log('Adding header to CSV file');
+            await fs.writeFile(defaultCsvPath, defaultHeader + content);
+        }
+    } catch (error) {
+        console.error('Error initializing CSV file:', error);
+    }
+}
+
 // Create data directory if it doesn't exist
 async function ensureDataDir() {
     const dataDir = path.join(__dirname, 'data');
@@ -39,18 +66,16 @@ async function ensureDataDir() {
 // Load links from CSV file
 async function loadLinksFromCsv(filePath) {
     try {
-        // Check if file exists first
         await fs.access(filePath);
-        
         const fileContent = await fs.readFile(filePath, 'utf-8');
-        // If file is empty, return empty array
+        
         if (!fileContent.trim()) {
             console.log('CSV file is empty');
             return [];
         }
 
-        const results = [];
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
+            const results = [];
             const stream = require('stream');
             const bufferStream = new stream.PassThrough();
             bufferStream.end(fileContent);
@@ -58,20 +83,22 @@ async function loadLinksFromCsv(filePath) {
             bufferStream
                 .pipe(csv())
                 .on('data', (data) => {
-                    // Only add valid entries
-                    if (data.name && data.url) {
-                        results.push(data);
+                    if (data.NAME && data.URL) {
+                        results.push({
+                            name: data.NAME,
+                            url: data.URL,
+                            notes: data.NOTES || ''
+                        });
                     }
                 })
-                .on('end', () => resolve(results))
-                .on('error', (error) => {
-                    console.error('CSV parsing error:', error);
-                    reject(error);
+                .on('end', () => {
+                    console.log('Loaded existing links:', results);
+                    resolve(results);
                 });
         });
     } catch (error) {
         console.log('Error reading CSV:', error);
-        return []; // Return empty array if file doesn't exist or can't be read
+        return [];
     }
 }
 
@@ -84,51 +111,81 @@ app.get('/api/links', async (req, res) => {
     }
 });
 
+// Add this helper function at the top
+function logSeparator(message = '') {
+    console.log('\n' + '='.repeat(50));
+    if (message) console.log(message);
+    console.log('='.repeat(50) + '\n');
+}
+
+// Helper function to check if two links are duplicates
+function isDuplicateLink(link1, link2) {
+    return link1.name === link2.name && 
+           link1.url === link2.url && 
+           link1.notes === link2.notes;
+}
+
+// Update the add link endpoint to properly handle notes
 app.post('/api/links', async (req, res) => {
     try {
-        const { name, url, notes = '' } = req.body;
-        console.log('Received raw input:', { name, url, notes });
+        logSeparator('NEW LINK REQUEST RECEIVED');
+        let newLink;
+        const { name } = req.body;
+        console.log('Received raw input:', req.body);
 
         // Handle name::url::notes format
         if (name && name.includes('::')) {
-            const parts = name.split('::');
+            const parts = name.split('::').map(part => part.trim());
+            console.log('Parsing input with format name::url::notes');
+            console.log('Split parts:', parts);
+            
             const newName = parts[0];
             let newUrl = parts[1] || '';
             const newNotes = parts[2] || '';
 
-            // Add https:// if no protocol specified
             if (newUrl && !newUrl.match(/^https?:\/\//)) {
                 newUrl = 'https://' + newUrl;
             }
 
-            const newLink = { 
-                name: newName.trim(), 
-                url: newUrl.trim(), 
-                notes: newNotes.trim() 
+            newLink = { 
+                name: newName, 
+                url: newUrl, 
+                notes: newNotes 
             };
-
-            if (!newLink.name || !newLink.url) {
-                return res.status(400).json({ error: 'Name and URL are required' });
-            }
-
-            links.push(newLink);
-            console.log('Added formatted link:', newLink);
-            return res.json(newLink);
+        } else {
+            return res.status(400).json({ error: 'Please use format: name::url::notes' });
         }
 
-        // Handle regular input
-        if (!name || !url) {
+        console.log('Processed new link:', newLink);
+
+        // Validate required fields
+        if (!newLink.name || !newLink.url) {
             return res.status(400).json({ error: 'Name and URL are required' });
         }
 
-        // Add https:// if no protocol specified
-        const formattedUrl = url.match(/^https?:\/\//) ? url : 'https://' + url;
-        const newLink = { name, url: formattedUrl, notes };
-        links.push(newLink);
-        console.log('Current links array:', links);
-        res.json(newLink);
+        // Read existing links from CSV to check for duplicates
+        const existingLinks = await loadLinksFromCsv(defaultCsvPath);
+        const isDuplicate = existingLinks.some(link => 
+            link.name === newLink.name && 
+            link.url === newLink.url
+        );
+
+        if (isDuplicate) {
+            console.log('Duplicate link detected:', newLink);
+            return res.status(400).json({ error: 'Link already exists' });
+        }
+
+        // Add to links array and save to CSV
+        links = [...existingLinks, newLink];
+        await ensureDataDir();
+        await csvWriter.writeRecords(links);
+        console.log('Links saved to CSV automatically');
+
+        logSeparator('LINK ADDED AND SAVED SUCCESSFULLY');
+        res.json({ success: true, links: links });
     } catch (error) {
         console.error('Error adding link:', error);
+        logSeparator('ERROR ADDING LINK');
         res.status(500).json({ error: 'Failed to add link' });
     }
 });
@@ -154,39 +211,66 @@ app.delete('/api/links/:id', async (req, res) => {
     }
 });
 
+// Update the save endpoint to prevent duplicates
 app.post('/api/save', async (req, res) => {
     try {
-        console.log('Attempting to save links:', links);
-        // Filter out invalid links
-        const validLinks = links.filter(link => link && link.name && link.url);
-        console.log('Filtered valid links to save:', validLinks);
+        logSeparator('SAVING LINKS TO CSV');
+        await ensureDataDir();
 
-        if (validLinks.length === 0) {
-            console.log('No valid links to save');
-            return res.json({ message: 'No valid links to save' });
+        // Get existing links from file
+        const existingLinks = await loadLinksFromCsv(defaultCsvPath);
+        console.log('Existing links:', existingLinks);
+
+        // Create a map to store unique links based on name and url
+        const uniqueLinks = new Map();
+        
+        // Process existing links first
+        existingLinks.forEach(link => {
+            const key = `${link.name}::${link.url}`;
+            uniqueLinks.set(key, link);
+        });
+
+        // Add new links, overwriting duplicates if they exist
+        links.forEach(link => {
+            const key = `${link.name}::${link.url}`;
+            uniqueLinks.set(key, link);
+        });
+
+        // Convert map back to array
+        const finalLinks = Array.from(uniqueLinks.values());
+        console.log('Unique links to save:', finalLinks);
+
+        if (finalLinks.length > 0) {
+            await csvWriter.writeRecords(finalLinks);
+            links = finalLinks; // Update the in-memory array
+            console.log('Links saved successfully');
+            logSeparator('SAVE OPERATION COMPLETED');
+            res.json({ message: 'Links saved successfully', links: finalLinks });
+        } else {
+            console.log('No links to save');
+            logSeparator('NO LINKS TO SAVE');
+            res.json({ message: 'No links to save' });
         }
-
-        await ensureDataDir(); // Ensure data directory exists
-        await csvWriter.writeRecords(validLinks);
-        console.log('Links saved successfully');
-        res.json({ message: 'Links saved successfully' });
     } catch (error) {
         console.error('Error saving links:', error);
+        logSeparator('ERROR SAVING LINKS');
         res.status(500).json({ error: `Failed to save links: ${error.message}` });
     }
 });
 
+// Update the load endpoint to refresh the links array
 app.get('/api/load', async (req, res) => {
     try {
+        logSeparator('LOADING LINKS FROM CSV');
         const loadedLinks = await loadLinksFromCsv(defaultCsvPath);
-        if (loadedLinks.length > 0) {
-            links = loadedLinks; // Only update if we loaded something
-        }
+        links = loadedLinks; // Always update the links array
         console.log('Current links after load:', links);
+        logSeparator('LOAD OPERATION COMPLETED');
         res.json(links);
     } catch (error) {
         console.error('Load error:', error);
-        res.json(links); // Return current links instead of empty array
+        logSeparator('ERROR LOADING LINKS');
+        res.json(links);
     }
 });
 
@@ -197,5 +281,17 @@ async function start() {
         console.log(`Server is running on http://localhost:${PORT}`);
     });
 }
+
+// Initialize links array on server start
+(async () => {
+    try {
+        await initializeCsvFile();
+        links = await loadLinksFromCsv(defaultCsvPath);
+        console.log('Initial links loaded:', links);
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        links = [];
+    }
+})();
 
 start(); 

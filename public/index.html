@@ -49,7 +49,7 @@
     
     <div class="controls">
         <div class="input-group">
-            <input type="text" id="newLink" placeholder="Format: name::url::notes" />
+            <input type="text" id="linkInput" placeholder="Format: name::url::notes" />
             <button onclick="addLink()">Add Link</button>
             <button onclick="saveLinks()">Save to File</button>
             <button onclick="loadLinks()">Load from File</button>
@@ -71,6 +71,7 @@
     <script>
         // Load links when page loads
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, loading links...');
             loadLinks();
         });
 
@@ -99,29 +100,35 @@
         }
 
         async function addLink() {
-            const input = document.getElementById('newLink');
-            const value = input.value;
-            const [name, url] = value.split('::');
-
-            if (!name || !url) {
-                alert('Please use the format: name::url::notes');
-                return;
-            }
-
             try {
+                const input = document.getElementById('linkInput');
+                const value = input.value.trim();
+                
+                if (!value) {
+                    alert('Please enter a link in the format: name::url::notes');
+                    return;
+                }
+
                 const response = await fetch('/api/links', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, url, notes: '' })
+                    body: JSON.stringify({ name: value })
                 });
+
+                const result = await response.json();
                 
-                if (response.ok) {
-                    input.value = '';
-                    loadLinks();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to add link');
+                }
+
+                if (result.success) {
+                    input.value = ''; // Clear input
+                    updateTable(result.links); // Update table with new links
+                    console.log('Link added successfully');
                 }
             } catch (error) {
-                console.error('Error adding link:', error);
-                alert('Failed to add link');
+                console.error('Error:', error);
+                alert(error.message);
             }
         }
 
@@ -183,13 +190,15 @@
         async function loadLinks() {
             try {
                 const response = await fetch('/api/load');
-                if (response.ok) {
-                    const links = await response.json();
-                    updateTable(links);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                const links = await response.json();
+                console.log('Loaded links:', links);
+                updateTable(links);
             } catch (error) {
                 console.error('Error loading links:', error);
-                alert('Failed to load links');
+                alert('Failed to load links. Please try again.');
             }
         }
     </script>
