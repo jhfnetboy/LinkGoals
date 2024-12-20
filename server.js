@@ -87,13 +87,43 @@ app.get('/api/links', async (req, res) => {
 app.post('/api/links', async (req, res) => {
     try {
         const { name, url, notes = '' } = req.body;
-        console.log('Received new link:', { name, url, notes });
+        console.log('Received raw input:', { name, url, notes });
 
+        // Handle name::url::notes format
+        if (name && name.includes('::')) {
+            const parts = name.split('::');
+            const newName = parts[0];
+            let newUrl = parts[1] || '';
+            const newNotes = parts[2] || '';
+
+            // Add https:// if no protocol specified
+            if (newUrl && !newUrl.match(/^https?:\/\//)) {
+                newUrl = 'https://' + newUrl;
+            }
+
+            const newLink = { 
+                name: newName.trim(), 
+                url: newUrl.trim(), 
+                notes: newNotes.trim() 
+            };
+
+            if (!newLink.name || !newLink.url) {
+                return res.status(400).json({ error: 'Name and URL are required' });
+            }
+
+            links.push(newLink);
+            console.log('Added formatted link:', newLink);
+            return res.json(newLink);
+        }
+
+        // Handle regular input
         if (!name || !url) {
             return res.status(400).json({ error: 'Name and URL are required' });
         }
 
-        const newLink = { name, url, notes };
+        // Add https:// if no protocol specified
+        const formattedUrl = url.match(/^https?:\/\//) ? url : 'https://' + url;
+        const newLink = { name, url: formattedUrl, notes };
         links.push(newLink);
         console.log('Current links array:', links);
         res.json(newLink);

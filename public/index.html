@@ -49,10 +49,8 @@
     
     <div class="controls">
         <div class="input-group">
-            <input type="text" id="newLink" placeholder="Format: name::url" />
+            <input type="text" id="newLink" placeholder="Format: name::url::notes" />
             <button onclick="addLink()">Add Link</button>
-        </div>
-        <div class="input-group">
             <button onclick="saveLinks()">Save to File</button>
             <button onclick="loadLinks()">Load from File</button>
         </div>
@@ -82,9 +80,14 @@
             
             links.forEach((link, index) => {
                 const tr = document.createElement('tr');
+                // Truncate URL to 20 characters and add ellipsis
+                const truncatedUrl = link.url.length > 20 
+                    ? link.url.substring(0, 20) + '...' 
+                    : link.url;
+                    
                 tr.innerHTML = `
                     <td>${link.name}</td>
-                    <td><a href="${link.url}" target="_blank">${link.url}</a></td>
+                    <td><a href="${link.url}" title="${link.url}" target="_blank">${truncatedUrl}</a></td>
                     <td>${link.notes || ''}</td>
                     <td class="action-buttons">
                         <button onclick="editLink(${index})">Edit</button>
@@ -101,7 +104,7 @@
             const [name, url] = value.split('::');
 
             if (!name || !url) {
-                alert('Please use the format: name::url');
+                alert('Please use the format: name::url::notes');
                 return;
             }
 
