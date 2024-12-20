@@ -52,3 +52,17 @@ local http static server, for some quick links
    - Update table UI dynamically
 
 ### File Structure
+name::url::notes
+
+## How to use
+1. clone this repo
+2. run `npm install`
+3. run `node server.js`
+4. open `http://localhost:3000` in your browser
+5. add new links to the table
+6. click save to save the table to `data/default.csv`
+7. click load to load the table from `data/default.csv`
+8. auto load `data/default.csv` on page load
+
+## Author
+jhfnetboy@gmail.com::spider::spider
