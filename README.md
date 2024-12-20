@@ -1,2 +1,54 @@
 # local-http
 local http static server, for some quick links
+
+## v0.1
+1. 我需要一个本地 http 静态服务器，可以快速通过页面，访问一些链接
+2. 页面以表格方式展示链接：三列，分别是 name, url, 备注
+3. 这个页面需要有一个输入的 input，格式是 name::url 来添加新链接
+4. 原有链接可以进行修改命名和删除
+5. 页面需要有一个按钮，点击后，将表格内容保存到本地文件
+6. 页面需要有一个按钮，点击后，将表格内容从本地文件加载到页面
+7. 以 csv 形式存储这些内容，可以加载多个文件，分段显示即可
+8. 自动加载 default.csv，并显示
+9. 使用 nodejs 开发这个页面，然后 http-server 启动 http 服务，常驻后台
+
+## v0.1 Implementation
+
+### Server Setup
+1. Create a basic Node.js server using Express
+2. Serve static files from public directory
+3. Add endpoints for:
+   - GET /links - Get all links from CSV files
+   - POST /links - Save new link
+   - PUT /links/:id - Update existing link
+   - DELETE /links/:id - Delete link
+   - POST /save - Save links to CSV file
+   - GET /load - Load links from CSV file
+
+### Frontend Implementation
+1. Create HTML table with columns:
+   - Name
+   - URL  
+   - Notes
+   - Actions (Edit/Delete buttons)
+
+2. Add input field for new links:
+   ```html
+   <input type="text" placeholder="name::url" id="newLink">
+   <button onclick="addLink()">Add</button>
+   ```
+
+3. Add save/load buttons:
+   ```html
+   <button onclick="saveLinks()">Save to File</button>
+   <button onclick="loadLinks()">Load from File</button>
+   ```
+
+4. JavaScript functionality:
+   - Parse input in format "name::url"
+   - CRUD operations for links using fetch API
+   - Auto-load default.csv on page load
+   - Save/load links to/from CSV files
+   - Update table UI dynamically
+
+### File Structure

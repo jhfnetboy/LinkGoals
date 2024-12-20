@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Links Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        button {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        input[type="text"] {
+            padding: 5px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Local Links Manager</h1>
+    
+    <div class="controls">
+        <div class="input-group">
+            <input type="text" id="newLink" placeholder="Format: name::url" />
+            <button onclick="addLink()">Add Link</button>
+        </div>
+        <div class="input-group">
+            <button onclick="saveLinks()">Save to File</button>
+            <button onclick="loadLinks()">Load from File</button>
+        </div>
+    </div>
+
+    <table id="linksTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>URL</th>
+                <th>Notes</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        // Load links when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLinks();
+        });
+
+        function updateTable(links) {
+            const tbody = document.querySelector('#linksTable tbody');
+            tbody.innerHTML = '';
+            
+            links.forEach((link, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${link.name}</td>
+                    <td><a href="${link.url}" target="_blank">${link.url}</a></td>
+                    <td>${link.notes || ''}</td>
+                    <td class="action-buttons">
+                        <button onclick="editLink(${index})">Edit</button>
+                        <button onclick="deleteLink(${index})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function addLink() {
+            const input = document.getElementById('newLink');
+            const value = input.value;
+            const [name, url] = value.split('::');
+
+            if (!name || !url) {
+                alert('Please use the format: name::url');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, url, notes: '' })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    loadLinks();
+                }
+            } catch (error) {
+                console.error('Error adding link:', error);
+                alert('Failed to add link');
+            }
+        }
+
+        async function editLink(index) {
+            const name = prompt('Enter new name:');
+            const url = prompt('Enter new URL:');
+            const notes = prompt('Enter notes (optional):');
+
+            if (!name || !url) return;
+
+            try {
+                const response = await fetch(`/api/links/${index}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, url, notes })
+                });
+                
+                if (response.ok) {
+                    loadLinks();
+                }
+            } catch (error) {
+                console.error('Error updating link:', error);
+                alert('Failed to update link');
+            }
+        }
+
+        async function deleteLink(index) {
+            if (!confirm('Are you sure you want to delete this link?')) return;
+
+            try {
+                const response = await fetch(`/api/links/${index}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadLinks();
+                }
+            } catch (error) {
+                console.error('Error deleting link:', error);
+                alert('Failed to delete link');
+            }
+        }
+
+        async function saveLinks() {
+            try {
+                const response = await fetch('/api/save', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('Links saved successfully');
+                }
+            } catch (error) {
+                console.error('Error saving links:', error);
+                alert('Failed to save links');
+            }
+        }
+
+        async function loadLinks() {
+            try {
+                const response = await fetch('/api/load');
+                if (response.ok) {
+                    const links = await response.json();
+                    updateTable(links);
+                }
+            } catch (error) {
+                console.error('Error loading links:', error);
+                alert('Failed to load links');
+            }
+        }
+    </script>
+</body>
+</html> 
