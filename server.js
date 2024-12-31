@@ -6,7 +6,7 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const path = require('node:path');
 
 const app = express();
-const PORT = 3000;
+const PORT = 3086;
 
 app.use(cors());
 app.use(express.json());
@@ -76,7 +76,7 @@ async function loadLinksFromCsv(filePath) {
 
         return new Promise((resolve) => {
             const results = [];
-            const stream = require('stream');
+            const stream = require('node:stream');
             const bufferStream = new stream.PassThrough();
             bufferStream.end(fileContent);
             
@@ -102,7 +102,7 @@ async function loadLinksFromCsv(filePath) {
     }
 }
 
-// API Endpoints
+// API Endpoints for links
 app.get('/api/links', async (req, res) => {
     try {
         res.json(links);
@@ -111,58 +111,34 @@ app.get('/api/links', async (req, res) => {
     }
 });
 
-// Add this helper function at the top
-function logSeparator(message = '') {
-    console.log('\n' + '='.repeat(50));
-    if (message) console.log(message);
-    console.log('='.repeat(50) + '\n');
-}
-
-// Helper function to check if two links are duplicates
-function isDuplicateLink(link1, link2) {
-    return link1.name === link2.name && 
-           link1.url === link2.url && 
-           link1.notes === link2.notes;
-}
-
 // Add new endpoint to clear CSV file
 app.post('/api/clear', async (req, res) => {
     try {
-        logSeparator('CLEARING CSV FILE');
         await ensureDataDir();
-        
-        // Write only the header to the CSV file
         await csvWriter.writeRecords([]);
         console.log('CSV file cleared');
-        
-        logSeparator('CSV FILE CLEARED SUCCESSFULLY');
         res.json({ success: true });
     } catch (error) {
         console.error('Error clearing CSV:', error);
-        logSeparator('ERROR CLEARING CSV');
         res.status(500).json({ error: 'Failed to clear CSV file' });
     }
 });
 
-// Update the add link endpoint to handle the new flow
 app.post('/api/links', async (req, res) => {
     try {
-        logSeparator('NEW LINK REQUEST RECEIVED');
         let newLink;
         const { name } = req.body;
-        console.log('Received raw input:', req.body);
 
         // Handle name::url::notes format
         if (name && name.includes('::')) {
             const parts = name.split('::').map(part => part.trim());
-            console.log('Parsing input with format name::url::notes');
             
             const newName = parts[0];
             let newUrl = parts[1] || '';
             const newNotes = parts[2] || '';
 
             if (newUrl && !newUrl.match(/^https?:\/\//)) {
-                newUrl = 'https://' + newUrl;
+                newUrl = `https://${newUrl}`;
             }
 
             newLink = { 
@@ -194,29 +170,16 @@ app.post('/api/links', async (req, res) => {
         links.push(newLink);
         
         try {
-            // Create a new csvWriter for each operation to ensure clean write
-            const writer = createCsvWriter({
-                path: defaultCsvPath,
-                header: [
-                    { id: 'name', title: 'NAME' },
-                    { id: 'url', title: 'URL' },
-                    { id: 'notes', title: 'NOTES' }
-                ]
-            });
-
-            // Write all links in one operation
-            await writer.writeRecords(links);
+            await csvWriter.writeRecords(links);
             console.log('All links saved to CSV successfully');
         } catch (writeError) {
             console.error('Error writing to CSV:', writeError);
             throw writeError;
         }
 
-        logSeparator('LINK ADDED AND SAVED SUCCESSFULLY');
         res.json({ success: true, links: links });
     } catch (error) {
         console.error('Error adding link:', error);
-        logSeparator('ERROR ADDING LINK');
         res.status(500).json({ error: 'Failed to add link' });
     }
 });
@@ -242,88 +205,272 @@ app.delete('/api/links/:id', async (req, res) => {
     }
 });
 
-// Update the save endpoint to prevent duplicates
 app.post('/api/save', async (req, res) => {
     try {
-        logSeparator('SAVING LINKS TO CSV');
         await ensureDataDir();
-
-        // Get existing links from file
-        const existingLinks = await loadLinksFromCsv(defaultCsvPath);
-        console.log('Existing links:', existingLinks);
-
-        // Create a unique identifier for each link
-        const getUniqueKey = (link) => `${link.name}::${link.url}`;
-
-        // Use Map to maintain unique entries
-        const uniqueLinksMap = new Map();
-
-        // First add existing links to the map
-        existingLinks.forEach(link => {
-            const key = getUniqueKey(link);
-            uniqueLinksMap.set(key, link);
-        });
-
-        // Then add current links, overwriting duplicates if they exist
-        links.forEach(link => {
-            const key = getUniqueKey(link);
-            // Only add if it doesn't exist or if it has different notes
-            const existing = uniqueLinksMap.get(key);
-            if (!existing || existing.notes !== link.notes) {
-                uniqueLinksMap.set(key, link);
-            }
-        });
-
-        // Convert map back to array
-        const finalLinks = Array.from(uniqueLinksMap.values());
-        
-        console.log('Final unique links to save:', finalLinks);
-
-        if (finalLinks.length > 0) {
-            // Update the in-memory links array first
-            links = [...finalLinks];
-            
-            // Then save to CSV
-            await csvWriter.writeRecords(finalLinks);
-            console.log('Links saved successfully');
-            logSeparator('SAVE OPERATION COMPLETED');
-            
-            // Send back updated links
-            res.json({ 
-                message: 'Links saved successfully', 
-                links: finalLinks 
-            });
-        } else {
-            console.log('No links to save');
-            logSeparator('NO LINKS TO SAVE');
-            res.json({ message: 'No links to save' });
-        }
+        await csvWriter.writeRecords(links);
+        res.json({ message: 'Links saved successfully' });
     } catch (error) {
-        console.error('Error saving links:', error);
-        logSeparator('ERROR SAVING LINKS');
-        res.status(500).json({ error: `Failed to save links: ${error.message}` });
+        res.status(500).json({ error: 'Failed to save links' });
     }
 });
 
-// Update the load endpoint to refresh the links array
 app.get('/api/load', async (req, res) => {
     try {
-        logSeparator('LOADING LINKS FROM CSV');
-        const loadedLinks = await loadLinksFromCsv(defaultCsvPath);
-        links = loadedLinks; // Always update the links array
-        console.log('Current links after load:', links);
-        logSeparator('LOAD OPERATION COMPLETED');
+        links = await loadLinksFromCsv(defaultCsvPath);
         res.json(links);
     } catch (error) {
-        console.error('Load error:', error);
-        logSeparator('ERROR LOADING LINKS');
         res.json(links);
     }
 });
+
+// Goals routes
+const goalsRouter = express.Router();
+
+// CSV file paths for goals
+const goalsCsvFiles = {
+    year: path.join(__dirname, 'data', 'year.csv'),
+    month: path.join(__dirname, 'data', 'month.csv'),
+    week: path.join(__dirname, 'data', 'week.csv')
+};
+
+// CSV writers for goals
+const goalsWriters = {
+    year: createCsvWriter({
+        path: goalsCsvFiles.year,
+        header: [
+            { id: 'id', title: 'ID' },
+            { id: 'content', title: 'CONTENT' },
+            { id: 'backgroundColor', title: 'BACKGROUND_COLOR' }
+        ]
+    }),
+    month: createCsvWriter({
+        path: goalsCsvFiles.month,
+        header: [
+            { id: 'id', title: 'ID' },
+            { id: 'content', title: 'CONTENT' },
+            { id: 'backgroundColor', title: 'BACKGROUND_COLOR' }
+        ]
+    }),
+    week: createCsvWriter({
+        path: goalsCsvFiles.week,
+        header: [
+            { id: 'id', title: 'ID' },
+            { id: 'content', title: 'CONTENT' },
+            { id: 'backgroundColor', title: 'BACKGROUND_COLOR' }
+        ]
+    })
+};
+
+// Connections CSV writer
+const connectionsWriter = createCsvWriter({
+    path: path.join(__dirname, 'data', 'connections.csv'),
+    header: [
+        { id: 'sourceId', title: 'SOURCE_ID' },
+        { id: 'targetId', title: 'TARGET_ID' },
+        { id: 'color', title: 'COLOR' }
+    ]
+});
+
+// Helper function to read goals CSV file
+async function readGoalsCsv(filePath) {
+    try {
+        await fs.access(filePath);
+        const fileContent = await fs.readFile(filePath, 'utf-8');
+        
+        if (!fileContent.trim()) {
+            console.log('CSV file is empty');
+            return [];
+        }
+
+        return new Promise((resolve) => {
+            const results = [];
+            const stream = require('node:stream');
+            const bufferStream = new stream.PassThrough();
+            bufferStream.end(fileContent);
+            
+            bufferStream
+                .pipe(csv())
+                .on('data', (data) => {
+                    if (data.ID && data.CONTENT) {
+                        results.push({
+                            id: data.ID,
+                            content: data.CONTENT,
+                            backgroundColor: data.BACKGROUND_COLOR || '#f9f9f9'
+                        });
+                    }
+                })
+                .on('end', () => resolve(results));
+        });
+    } catch (error) {
+        console.log('Error reading CSV:', error);
+        return [];
+    }
+}
+
+// Helper function to read connections CSV file
+async function readConnectionsCsv(filePath) {
+    try {
+        await fs.access(filePath);
+        const fileContent = await fs.readFile(filePath, 'utf-8');
+        
+        if (!fileContent.trim()) {
+            console.log('CSV file is empty');
+            return [];
+        }
+
+        return new Promise((resolve) => {
+            const results = [];
+            const stream = require('node:stream');
+            const bufferStream = new stream.PassThrough();
+            bufferStream.end(fileContent);
+            
+            bufferStream
+                .pipe(csv())
+                .on('data', (data) => {
+                    if (data.SOURCE_ID && data.TARGET_ID) {
+                        results.push({
+                            sourceId: data.SOURCE_ID,
+                            targetId: data.TARGET_ID,
+                            color: data.COLOR || '#5c96bc'
+                        });
+                    }
+                })
+                .on('end', () => resolve(results));
+        });
+    } catch (error) {
+        console.log('Error reading CSV:', error);
+        return [];
+    }
+}
+
+// Update the goals routes
+goalsRouter.get('/:type', async (req, res) => {
+    try {
+        const { type } = req.params;
+        if (!goalsCsvFiles[type]) {
+            return res.status(400).json({ error: 'Invalid goal type' });
+        }
+
+        const goals = await readGoalsCsv(goalsCsvFiles[type]);
+        res.json(goals);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get goals' });
+    }
+});
+
+goalsRouter.post('/:type', async (req, res) => {
+    try {
+        const { type } = req.params;
+        if (!goalsCsvFiles[type]) {
+            return res.status(400).json({ error: 'Invalid goal type' });
+        }
+
+        const goals = await readGoalsCsv(goalsCsvFiles[type]);
+        const goal = req.body;
+        goals.push(goal);
+        
+        await goalsWriters[type].writeRecords(goals);
+        res.json(goal);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save goal' });
+    }
+});
+
+goalsRouter.put('/:type/:id', async (req, res) => {
+    try {
+        const { type, id } = req.params;
+        if (!goalsCsvFiles[type]) {
+            return res.status(400).json({ error: 'Invalid goal type' });
+        }
+
+        const goals = await readGoalsCsv(goalsCsvFiles[type]);
+        const index = goals.findIndex(g => g.id === id);
+        
+        if (index === -1) {
+            return res.status(404).json({ error: 'Goal not found' });
+        }
+
+        const updatedGoal = { ...goals[index], ...req.body };
+        goals[index] = updatedGoal;
+        
+        await goalsWriters[type].writeRecords(goals);
+        res.json(updatedGoal);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update goal' });
+    }
+});
+
+goalsRouter.delete('/:type/:id', async (req, res) => {
+    try {
+        const { type, id } = req.params;
+        if (!goalsCsvFiles[type]) {
+            return res.status(400).json({ error: 'Invalid goal type' });
+        }
+
+        const goals = await readGoalsCsv(goalsCsvFiles[type]);
+        const filteredGoals = goals.filter(g => g.id !== id);
+        
+        await goalsWriters[type].writeRecords(filteredGoals);
+        res.json({ message: 'Goal deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete goal' });
+    }
+});
+
+// Update the connection routes
+goalsRouter.get('/connections/:type', async (req, res) => {
+    try {
+        const connections = await readConnectionsCsv(path.join(__dirname, 'data', 'connections.csv'));
+        res.json(connections);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get connections' });
+    }
+});
+
+goalsRouter.post('/connections', async (req, res) => {
+    try {
+        const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
+        const connections = await readConnectionsCsv(connectionsPath);
+        const connection = req.body;
+        connections.push(connection);
+        
+        await connectionsWriter.writeRecords(connections);
+        res.json(connection);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save connection' });
+    }
+});
+
+// Mount goals router
+app.use('/api/goals', goalsRouter);
+
+// Initialize goals CSV files
+async function initializeGoalsFiles() {
+    const header = 'ID,CONTENT,BACKGROUND_COLOR\n';
+    for (const [type, filePath] of Object.entries(goalsCsvFiles)) {
+        try {
+            await fs.access(filePath);
+        } catch {
+            await fs.writeFile(filePath, header);
+        }
+    }
+
+    // Initialize connections file
+    const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
+    try {
+        await fs.access(connectionsPath);
+    } catch {
+        await fs.writeFile(connectionsPath, 'SOURCE_ID,TARGET_ID,COLOR\n');
+    }
+}
 
 // Start server
 async function start() {
     await ensureDataDir();
+    await initializeCsvFile();
+    await initializeGoalsFiles();
+    
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);
     });
@@ -332,7 +479,6 @@ async function start() {
 // Initialize links array on server start
 (async () => {
     try {
-        await initializeCsvFile();
         links = await loadLinksFromCsv(defaultCsvPath);
         console.log('Initial links loaded:', links);
     } catch (error) {
