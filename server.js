@@ -344,7 +344,32 @@ async function readConnectionsCsv(filePath) {
     }
 }
 
-// Update the goals routes
+// Move these routes BEFORE the /:type routes to prevent path conflicts
+goalsRouter.get('/connections', async (req, res) => {
+    try {
+        const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
+        const connections = await readConnectionsCsv(connectionsPath);
+        res.json(connections);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get connections' });
+    }
+});
+
+goalsRouter.post('/connections', async (req, res) => {
+    try {
+        const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
+        const connections = await readConnectionsCsv(connectionsPath);
+        const connection = req.body;
+        connections.push(connection);
+        
+        await connectionsWriter.writeRecords(connections);
+        res.json(connection);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save connection' });
+    }
+});
+
+// Then the type-specific routes
 goalsRouter.get('/:type', async (req, res) => {
     try {
         const { type } = req.params;
@@ -366,10 +391,19 @@ goalsRouter.post('/:type', async (req, res) => {
             return res.status(400).json({ error: 'Invalid goal type' });
         }
 
+        // Load existing goals
         const goals = await readGoalsCsv(goalsCsvFiles[type]);
         const goal = req.body;
-        goals.push(goal);
+
+        // Check if goal already exists
+        const existingIndex = goals.findIndex(g => g.id === goal.id);
+        if (existingIndex !== -1) {
+            goals[existingIndex] = goal;
+        } else {
+            goals.push(goal);
+        }
         
+        // Write all goals back to file
         await goalsWriters[type].writeRecords(goals);
         res.json(goal);
     } catch (error) {
@@ -388,9 +422,14 @@ goalsRouter.put('/:type/:id', async (req, res) => {
         const index = goals.findIndex(g => g.id === id);
         
         if (index === -1) {
-            return res.status(404).json({ error: 'Goal not found' });
+            // If goal doesn't exist, create it
+            const newGoal = { id, ...req.body };
+            goals.push(newGoal);
+            await goalsWriters[type].writeRecords(goals);
+            return res.json(newGoal);
         }
 
+        // Update existing goal
         const updatedGoal = { ...goals[index], ...req.body };
         goals[index] = updatedGoal;
         
@@ -415,30 +454,6 @@ goalsRouter.delete('/:type/:id', async (req, res) => {
         res.json({ message: 'Goal deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete goal' });
-    }
-});
-
-// Update the connection routes
-goalsRouter.get('/connections/:type', async (req, res) => {
-    try {
-        const connections = await readConnectionsCsv(path.join(__dirname, 'data', 'connections.csv'));
-        res.json(connections);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to get connections' });
-    }
-});
-
-goalsRouter.post('/connections', async (req, res) => {
-    try {
-        const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
-        const connections = await readConnectionsCsv(connectionsPath);
-        const connection = req.body;
-        connections.push(connection);
-        
-        await connectionsWriter.writeRecords(connections);
-        res.json(connection);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to save connection' });
     }
 });
 

@@ -78,7 +78,7 @@ class GoalsManager {
 
     async saveConnection(connection) {
         try {
-            const response = await fetch('/api/connections', {
+            const response = await fetch('/api/goals/connections', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(connection)
@@ -97,14 +97,14 @@ class GoalsManager {
 
     async loadConnections() {
         try {
-            const response = await fetch(`/api/connections/${this.type}`);
+            const response = await fetch('/api/goals/connections');
             if (response.ok) {
                 this.connections = await response.json();
                 return this.connections;
             }
             return [];
         } catch (error) {
-            console.error(`Error loading ${this.type} connections:`, error);
+            console.error(`Error loading connections:`, error);
             return [];
         }
     }

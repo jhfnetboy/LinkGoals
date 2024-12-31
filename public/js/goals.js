@@ -122,11 +122,20 @@ function makeElementTarget(element, type) {
 function setupDragAndDrop() {
     // Add connection validation
     jsPlumbInstance.bind('beforeDrop', (info) => {
-        const sourceElement = info.source;
-        const targetElement = info.target;
+        if (!info.source || !info.target) return false;
         
-        const sourceType = sourceElement.closest('.goal-column').id.split('-')[0];
-        const targetType = targetElement.closest('.goal-column').id.split('-')[0];
+        const sourceGoalItem = info.source.closest('.goal-item');
+        const targetGoalItem = info.target.closest('.goal-item');
+        
+        if (!sourceGoalItem || !targetGoalItem) return false;
+        
+        const sourceColumn = sourceGoalItem.closest('.goal-column');
+        const targetColumn = targetGoalItem.closest('.goal-column');
+        
+        if (!sourceColumn || !targetColumn) return false;
+        
+        const sourceType = sourceColumn.id.split('-')[0];
+        const targetType = targetColumn.id.split('-')[0];
         
         const validConnections = {
             year: ['month'],
@@ -138,9 +147,19 @@ function setupDragAndDrop() {
 
     // Add connection created handler
     jsPlumbInstance.bind('connection', async (info) => {
+        if (!info.source || !info.target) return;
+        
+        const sourceGoalItem = info.source.closest('.goal-item');
+        const targetGoalItem = info.target;
+        
+        if (!sourceGoalItem || !targetGoalItem) {
+            jsPlumbInstance.deleteConnection(info.connection);
+            return;
+        }
+
         const connection = {
-            sourceId: info.source.id,
-            targetId: info.target.id,
+            sourceId: sourceGoalItem.id,
+            targetId: targetGoalItem.id,
             color: '#5c96bc'
         };
 
@@ -189,15 +208,22 @@ function renderConnection(connection) {
 
 // Export functions for use in HTML
 window.updateGoalColor = async (goalId, color) => {
-    const managers = [yearGoals, monthGoals, weekGoals];
-    for (const manager of managers) {
-        try {
-            await manager.updateGoal(goalId, { backgroundColor: color });
-            document.getElementById(goalId).style.backgroundColor = color;
-            break;
-        } catch (error) {
-            // Continue to next manager
-        }
+    const element = document.getElementById(goalId);
+    if (!element) return;
+
+    const columnType = element.closest('.goal-column').id.split('-')[0];
+    const manager = getManagerForType(columnType);
+
+    try {
+        await manager.updateGoal(goalId, { 
+            id: goalId,
+            content: element.querySelector('.goal-content').textContent,
+            backgroundColor: color 
+        });
+        element.style.backgroundColor = color;
+    } catch (error) {
+        console.error('Error updating goal color:', error);
+        alert('Failed to update goal color');
     }
 };
 
