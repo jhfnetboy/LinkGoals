@@ -12,6 +12,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Import goals routes
+const goalsRouter = require('./routes/goals');
+
 // Initialize empty links array
 let links = [];
 
@@ -224,282 +227,21 @@ app.get('/api/load', async (req, res) => {
     }
 });
 
-// Goals routes
-const goalsRouter = express.Router();
-
-// CSV file paths for goals
-const goalsCsvFiles = {
-    year: path.join(__dirname, 'data', 'year.csv'),
-    month: path.join(__dirname, 'data', 'month.csv'),
-    week: path.join(__dirname, 'data', 'week.csv')
-};
-
-// CSV writers for goals
-const goalsWriters = {
-    year: createCsvWriter({
-        path: goalsCsvFiles.year,
-        header: [
-            { id: 'id', title: 'ID' },
-            { id: 'content', title: 'CONTENT' },
-            { id: 'backgroundColor', title: 'BACKGROUND_COLOR' }
-        ]
-    }),
-    month: createCsvWriter({
-        path: goalsCsvFiles.month,
-        header: [
-            { id: 'id', title: 'ID' },
-            { id: 'content', title: 'CONTENT' },
-            { id: 'backgroundColor', title: 'BACKGROUND_COLOR' }
-        ]
-    }),
-    week: createCsvWriter({
-        path: goalsCsvFiles.week,
-        header: [
-            { id: 'id', title: 'ID' },
-            { id: 'content', title: 'CONTENT' },
-            { id: 'backgroundColor', title: 'BACKGROUND_COLOR' }
-        ]
-    })
-};
-
-// Connections CSV writer
-const connectionsWriter = createCsvWriter({
-    path: path.join(__dirname, 'data', 'connections.csv'),
-    header: [
-        { id: 'sourceId', title: 'SOURCE_ID' },
-        { id: 'targetId', title: 'TARGET_ID' },
-        { id: 'color', title: 'COLOR' }
-    ]
-});
-
-// Helper function to read goals CSV file
-async function readGoalsCsv(filePath) {
-    try {
-        await fs.access(filePath);
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        
-        if (!fileContent.trim()) {
-            console.log('CSV file is empty');
-            return [];
-        }
-
-        return new Promise((resolve) => {
-            const results = [];
-            const stream = require('node:stream');
-            const bufferStream = new stream.PassThrough();
-            bufferStream.end(fileContent);
-            
-            bufferStream
-                .pipe(csv())
-                .on('data', (data) => {
-                    if (data.ID && data.CONTENT) {
-                        results.push({
-                            id: data.ID,
-                            content: data.CONTENT,
-                            backgroundColor: data.BACKGROUND_COLOR || '#f9f9f9'
-                        });
-                    }
-                })
-                .on('end', () => resolve(results));
-        });
-    } catch (error) {
-        console.log('Error reading CSV:', error);
-        return [];
-    }
-}
-
-// Helper function to read connections CSV file
-async function readConnectionsCsv(filePath) {
-    try {
-        await fs.access(filePath);
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        
-        if (!fileContent.trim()) {
-            console.log('CSV file is empty');
-            return [];
-        }
-
-        return new Promise((resolve) => {
-            const results = [];
-            const stream = require('node:stream');
-            const bufferStream = new stream.PassThrough();
-            bufferStream.end(fileContent);
-            
-            bufferStream
-                .pipe(csv())
-                .on('data', (data) => {
-                    if (data.SOURCE_ID && data.TARGET_ID) {
-                        results.push({
-                            sourceId: data.SOURCE_ID,
-                            targetId: data.TARGET_ID,
-                            color: data.COLOR || '#5c96bc'
-                        });
-                    }
-                })
-                .on('end', () => resolve(results));
-        });
-    } catch (error) {
-        console.log('Error reading CSV:', error);
-        return [];
-    }
-}
-
-// Move these routes BEFORE the /:type routes to prevent path conflicts
-goalsRouter.get('/connections', async (req, res) => {
-    try {
-        const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
-        const connections = await readConnectionsCsv(connectionsPath);
-        res.json(connections);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to get connections' });
-    }
-});
-
-goalsRouter.post('/connections', async (req, res) => {
-    try {
-        const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
-        const connections = await readConnectionsCsv(connectionsPath);
-        const connection = req.body;
-        connections.push(connection);
-        
-        await connectionsWriter.writeRecords(connections);
-        res.json(connection);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to save connection' });
-    }
-});
-
-// Then the type-specific routes
-goalsRouter.get('/:type', async (req, res) => {
-    try {
-        const { type } = req.params;
-        if (!goalsCsvFiles[type]) {
-            return res.status(400).json({ error: 'Invalid goal type' });
-        }
-
-        const goals = await readGoalsCsv(goalsCsvFiles[type]);
-        res.json(goals);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to get goals' });
-    }
-});
-
-goalsRouter.post('/:type', async (req, res) => {
-    try {
-        const { type } = req.params;
-        if (!goalsCsvFiles[type]) {
-            return res.status(400).json({ error: 'Invalid goal type' });
-        }
-
-        // Load existing goals
-        const goals = await readGoalsCsv(goalsCsvFiles[type]);
-        const goal = req.body;
-
-        // Check if goal already exists
-        const existingIndex = goals.findIndex(g => g.id === goal.id);
-        if (existingIndex !== -1) {
-            goals[existingIndex] = goal;
-        } else {
-            goals.push(goal);
-        }
-        
-        // Write all goals back to file
-        await goalsWriters[type].writeRecords(goals);
-        res.json(goal);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to save goal' });
-    }
-});
-
-goalsRouter.put('/:type/:id', async (req, res) => {
-    try {
-        const { type, id } = req.params;
-        if (!goalsCsvFiles[type]) {
-            return res.status(400).json({ error: 'Invalid goal type' });
-        }
-
-        const goals = await readGoalsCsv(goalsCsvFiles[type]);
-        const index = goals.findIndex(g => g.id === id);
-        
-        if (index === -1) {
-            // If goal doesn't exist, create it
-            const newGoal = { id, ...req.body };
-            goals.push(newGoal);
-            await goalsWriters[type].writeRecords(goals);
-            return res.json(newGoal);
-        }
-
-        // Update existing goal
-        const updatedGoal = { ...goals[index], ...req.body };
-        goals[index] = updatedGoal;
-        
-        await goalsWriters[type].writeRecords(goals);
-        res.json(updatedGoal);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update goal' });
-    }
-});
-
-goalsRouter.delete('/:type/:id', async (req, res) => {
-    try {
-        const { type, id } = req.params;
-        if (!goalsCsvFiles[type]) {
-            return res.status(400).json({ error: 'Invalid goal type' });
-        }
-
-        const goals = await readGoalsCsv(goalsCsvFiles[type]);
-        const filteredGoals = goals.filter(g => g.id !== id);
-        
-        await goalsWriters[type].writeRecords(filteredGoals);
-        res.json({ message: 'Goal deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to delete goal' });
-    }
-});
-
-// Mount goals router
+// Mount goals routes
 app.use('/api/goals', goalsRouter);
 
-// Initialize goals CSV files
-async function initializeGoalsFiles() {
-    const header = 'ID,CONTENT,BACKGROUND_COLOR\n';
-    for (const [type, filePath] of Object.entries(goalsCsvFiles)) {
-        try {
-            await fs.access(filePath);
-        } catch {
-            await fs.writeFile(filePath, header);
-        }
-    }
-
-    // Initialize connections file
-    const connectionsPath = path.join(__dirname, 'data', 'connections.csv');
-    try {
-        await fs.access(connectionsPath);
-    } catch {
-        await fs.writeFile(connectionsPath, 'SOURCE_ID,TARGET_ID,COLOR\n');
-    }
-}
-
-// Start server
-async function start() {
-    await ensureDataDir();
-    await initializeCsvFile();
-    await initializeGoalsFiles();
-    
-    app.listen(PORT, () => {
-        console.log(`Server is running on http://localhost:${PORT}`);
-    });
-}
-
-// Initialize links array on server start
+// Initialize
 (async () => {
     try {
+        await ensureDataDir();
+        await initializeCsvFile();
         links = await loadLinksFromCsv(defaultCsvPath);
         console.log('Initial links loaded:', links);
     } catch (error) {
-        console.error('Error during initialization:', error);
-        links = [];
+        console.error('Initialization error:', error);
     }
 })();
 
-start(); 
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+}); 

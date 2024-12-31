@@ -1,61 +1,82 @@
+// Add hash function
+function hashContent(content) {
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString();
+}
+
+function createGoalElement(goal) {
+    const div = document.createElement('div');
+    div.className = 'goal-item';
+    div.id = goal.id || hashContent(goal.content);
+    div.style.backgroundColor = goal.backgroundColor || '#f9f9f9';
+    
+    div.innerHTML = `
+        <span class="goal-content" contenteditable="true">${goal.content}</span>
+        <div class="goal-actions">
+            <input type="color" value="${goal.backgroundColor || '#f9f9f9'}" 
+                onchange="updateGoalColor('${div.id}', this.value)">
+            <button onclick="deleteGoal('${div.id}')">×</button>
+            <span class="drag-handle">></span>
+        </div>
+    `;
+
+    return div;
+}
+
 class GoalsManager {
     constructor(type) {
-        this.type = type; // 'year', 'month', or 'week'
-        this.goals = [];
-        this.connections = [];
+        this.type = type;
     }
 
     async loadGoals() {
         try {
             const response = await fetch(`/api/goals/${this.type}`);
-            if (response.ok) {
-                this.goals = await response.json();
-                return this.goals;
-            }
-            return [];
+            if (!response.ok) throw new Error('Failed to load goals');
+            return await response.json();
         } catch (error) {
-            console.error(`Error loading ${this.type} goals:`, error);
+            console.error('Error loading goals:', error);
             return [];
         }
     }
 
     async saveGoal(goal) {
         try {
+            // Use content hash as ID if not provided
+            if (!goal.id) {
+                goal.id = hashContent(goal.content);
+            }
+
             const response = await fetch(`/api/goals/${this.type}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(goal)
             });
-            if (response.ok) {
-                const result = await response.json();
-                this.goals.push(result);
-                return result;
-            }
-            throw new Error('Failed to save goal');
+            
+            if (!response.ok) throw new Error('Failed to save goal');
+            return await response.json();
         } catch (error) {
-            console.error(`Error saving ${this.type} goal:`, error);
+            console.error('Error saving goal:', error);
             throw error;
         }
     }
 
-    async updateGoal(id, updates) {
+    async updateGoal(id, goal) {
         try {
             const response = await fetch(`/api/goals/${this.type}/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
+                body: JSON.stringify(goal)
             });
-            if (response.ok) {
-                const updatedGoal = await response.json();
-                const index = this.goals.findIndex(g => g.id === id);
-                if (index !== -1) {
-                    this.goals[index] = updatedGoal;
-                }
-                return updatedGoal;
-            }
-            throw new Error('Failed to update goal');
+            
+            if (!response.ok) throw new Error('Failed to update goal');
+            return await response.json();
         } catch (error) {
-            console.error(`Error updating ${this.type} goal:`, error);
+            console.error('Error updating goal:', error);
             throw error;
         }
     }
@@ -65,14 +86,23 @@ class GoalsManager {
             const response = await fetch(`/api/goals/${this.type}/${id}`, {
                 method: 'DELETE'
             });
-            if (response.ok) {
-                this.goals = this.goals.filter(g => g.id !== id);
-                return true;
-            }
-            throw new Error('Failed to delete goal');
+            
+            if (!response.ok) throw new Error('Failed to delete goal');
+            return await response.json();
         } catch (error) {
-            console.error(`Error deleting ${this.type} goal:`, error);
+            console.error('Error deleting goal:', error);
             throw error;
+        }
+    }
+
+    async loadConnections() {
+        try {
+            const response = await fetch(`/api/goals/connections/${this.type}`);
+            if (!response.ok) throw new Error('Failed to load connections');
+            return await response.json();
+        } catch (error) {
+            console.error('Error loading connections:', error);
+            return [];
         }
     }
 
@@ -83,54 +113,18 @@ class GoalsManager {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(connection)
             });
-            if (response.ok) {
-                const result = await response.json();
-                this.connections.push(result);
-                return result;
-            }
-            throw new Error('Failed to save connection');
+            
+            if (!response.ok) throw new Error('Failed to save connection');
+            return await response.json();
         } catch (error) {
             console.error('Error saving connection:', error);
             throw error;
         }
     }
-
-    async loadConnections() {
-        try {
-            const response = await fetch('/api/goals/connections');
-            if (response.ok) {
-                this.connections = await response.json();
-                return this.connections;
-            }
-            return [];
-        } catch (error) {
-            console.error(`Error loading connections:`, error);
-            return [];
-        }
-    }
 }
 
-// Helper functions for UI
-const createGoalElement = (goal) => {
-    const div = document.createElement('div');
-    div.className = 'goal-item';
-    div.id = goal.id;
-    div.style.backgroundColor = goal.backgroundColor || '#f9f9f9';
-    
-    div.innerHTML = `
-        <div class="goal-content">${goal.content}</div>
-        <div class="goal-actions">
-            <input type="color" class="color-picker" value="${goal.backgroundColor || '#f9f9f9'}" 
-                onchange="updateGoalColor('${goal.id}', this.value)">
-            <button onclick="deleteGoal('${goal.id}')">Delete</button>
-            <span class="drag-handle" data-goal-id="${goal.id}">&gt;</span>
-        </div>
-    `;
-    
-    return div;
-};
-
-const initJsPlumb = (instance) => {
+// Helper function for jsPlumb initialization
+function initJsPlumb(instance) {
     instance.setContainer(document.querySelector('.goals-container'));
     
     instance.importDefaults({
@@ -142,6 +136,6 @@ const initJsPlumb = (instance) => {
     });
     
     return instance;
-};
+}
 
-export { GoalsManager, createGoalElement, initJsPlumb }; 
+export { GoalsManager, createGoalElement, initJsPlumb, hashContent }; 

@@ -1,4 +1,4 @@
-import { GoalsManager, createGoalElement, initJsPlumb } from './goals-util.js';
+import { GoalsManager, createGoalElement, initJsPlumb, hashContent } from './goals-util.js';
 
 // Initialize jsPlumb instance
 const jsPlumbInstance = initJsPlumb(jsPlumb.getInstance());
@@ -16,26 +16,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadAllGoals() {
-    // Load goals for each time period
-    const [yearData, monthData, weekData] = await Promise.all([
-        yearGoals.loadGoals(),
-        monthGoals.loadGoals(),
-        weekGoals.loadGoals()
-    ]);
+    try {
+        // Load goals for each time period
+        const [yearData, monthData, weekData] = await Promise.all([
+            yearGoals.loadGoals(),
+            monthGoals.loadGoals(),
+            weekGoals.loadGoals()
+        ]);
 
-    // Render goals
-    renderGoals('year-list', yearData);
-    renderGoals('month-list', monthData);
-    renderGoals('week-list', weekData);
+        console.log('Loaded goals:', { yearData, monthData, weekData });
 
-    // Load and render connections
-    await loadConnections();
+        // Render goals
+        renderGoals('year-list', yearData);
+        renderGoals('month-list', monthData);
+        renderGoals('week-list', weekData);
+
+        // Load and render connections
+        await loadConnections();
+    } catch (error) {
+        console.error('Error loading goals:', error);
+    }
 }
 
 function renderGoals(containerId, goals) {
     const container = document.getElementById(containerId);
+    if (!container) {
+        console.error(`Container ${containerId} not found`);
+        return;
+    }
+
     container.innerHTML = '';
+    if (!Array.isArray(goals)) {
+        console.error(`Invalid goals data for ${containerId}:`, goals);
+        return;
+    }
+
     for (const goal of goals) {
+        if (!goal || !goal.content) {
+            console.error(`Invalid goal data:`, goal);
+            continue;
+        }
+
         const element = createGoalElement(goal);
         container.appendChild(element);
         makeElementDraggable(element);
@@ -46,9 +67,14 @@ function renderGoals(containerId, goals) {
 
 function setupEventListeners() {
     // Add goal when pressing Enter in input fields
-    document.getElementById('year-input').addEventListener('keypress', e => handleNewGoal(e, 'year'));
-    document.getElementById('month-input').addEventListener('keypress', e => handleNewGoal(e, 'month'));
-    document.getElementById('week-input').addEventListener('keypress', e => handleNewGoal(e, 'week'));
+    document.getElementById('year-input')?.addEventListener('keypress', e => handleNewGoal(e, 'year'));
+    document.getElementById('month-input')?.addEventListener('keypress', e => handleNewGoal(e, 'month'));
+    document.getElementById('week-input')?.addEventListener('keypress', e => handleNewGoal(e, 'week'));
+
+    // Add goal when clicking the "+" buttons
+    document.getElementById('year-add')?.addEventListener('click', () => addGoal('year'));
+    document.getElementById('month-add')?.addEventListener('click', () => addGoal('month'));
+    document.getElementById('week-add')?.addEventListener('click', () => addGoal('week'));
 }
 
 async function handleNewGoal(event, type) {
@@ -59,8 +85,12 @@ async function handleNewGoal(event, type) {
 
 window.addGoal = async (type) => {
     const input = document.getElementById(`${type}-input`);
+    if (!input) {
+        console.error(`Input element for ${type} not found`);
+        return;
+    }
+
     const content = input.value.trim();
-    
     if (!content) {
         alert('Please enter a goal');
         return;
@@ -69,19 +99,26 @@ window.addGoal = async (type) => {
     const goal = {
         content,
         backgroundColor: '#f9f9f9',
-        id: Date.now().toString()
+        id: hashContent(content)
     };
 
     const manager = getManagerForType(type);
+    if (!manager) {
+        console.error(`No manager found for type: ${type}`);
+        return;
+    }
 
     try {
         const savedGoal = await manager.saveGoal(goal);
         const element = createGoalElement(savedGoal);
-        document.getElementById(`${type}-list`).appendChild(element);
-        makeElementDraggable(element);
-        setupDragHandle(element.querySelector('.drag-handle'));
-        makeElementTarget(element, type);
-        input.value = '';
+        const container = document.getElementById(`${type}-list`);
+        if (container) {
+            container.appendChild(element);
+            makeElementDraggable(element);
+            setupDragHandle(element.querySelector('.drag-handle'));
+            makeElementTarget(element, type);
+            input.value = '';
+        }
     } catch (error) {
         console.error('Error saving goal:', error);
         alert('Failed to save goal');
@@ -114,7 +151,8 @@ function makeElementTarget(element, type) {
         jsPlumbInstance.makeTarget(element, {
             dropOptions: { hoverClass: 'dragHover' },
             anchor: 'Left',
-            allowLoopback: false
+            allowLoopback: false,
+            maxConnections: -1
         });
     }
 }
@@ -125,7 +163,7 @@ function setupDragAndDrop() {
         if (!info.source || !info.target) return false;
         
         const sourceGoalItem = info.source.closest('.goal-item');
-        const targetGoalItem = info.target.closest('.goal-item');
+        const targetGoalItem = info.target;
         
         if (!sourceGoalItem || !targetGoalItem) return false;
         
@@ -160,11 +198,13 @@ function setupDragAndDrop() {
         const connection = {
             sourceId: sourceGoalItem.id,
             targetId: targetGoalItem.id,
-            color: '#5c96bc'
+            color: getRandomColor()
         };
 
         try {
             await yearGoals.saveConnection(connection);
+            // Update the connection color
+            info.connection.setPaintStyle({ stroke: connection.color, strokeWidth: 2 });
         } catch (error) {
             console.error('Error saving connection:', error);
             jsPlumbInstance.deleteConnection(info.connection);
@@ -194,12 +234,21 @@ function renderConnection(connection) {
     const sourceElement = document.getElementById(connection.sourceId);
     const targetElement = document.getElementById(connection.targetId);
     
-    if (!sourceElement || !targetElement) return;
+    if (!sourceElement || !targetElement) {
+        console.error('Connection elements not found:', connection);
+        return;
+    }
+
+    const dragHandle = sourceElement.querySelector('.drag-handle');
+    if (!dragHandle) {
+        console.error('Drag handle not found for source element:', sourceElement);
+        return;
+    }
 
     jsPlumbInstance.connect({
-        source: sourceElement.querySelector('.drag-handle'),
+        source: dragHandle,
         target: targetElement,
-        paintStyle: { stroke: connection.color, strokeWidth: 2 },
+        paintStyle: { stroke: connection.color || getRandomColor(), strokeWidth: 2 },
         connector: ['Bezier', { curviness: 50 }],
         endpoints: [['Dot', { radius: 5 }], ['Dot', { radius: 5 }]],
         anchors: ['Right', 'Left']
@@ -209,15 +258,33 @@ function renderConnection(connection) {
 // Export functions for use in HTML
 window.updateGoalColor = async (goalId, color) => {
     const element = document.getElementById(goalId);
-    if (!element) return;
+    if (!element) {
+        console.error('Element not found:', goalId);
+        return;
+    }
 
-    const columnType = element.closest('.goal-column').id.split('-')[0];
+    const columnType = element.closest('.goal-column')?.id.split('-')[0];
+    if (!columnType) {
+        console.error('Column type not found for element:', element);
+        return;
+    }
+
     const manager = getManagerForType(columnType);
+    if (!manager) {
+        console.error('No manager found for type:', columnType);
+        return;
+    }
 
     try {
+        const content = element.querySelector('.goal-content')?.textContent;
+        if (!content) {
+            console.error('Content not found in element:', element);
+            return;
+        }
+
         await manager.updateGoal(goalId, { 
             id: goalId,
-            content: element.querySelector('.goal-content').textContent,
+            content: content,
             backgroundColor: color 
         });
         element.style.backgroundColor = color;
@@ -230,18 +297,39 @@ window.updateGoalColor = async (goalId, color) => {
 window.deleteGoal = async (goalId) => {
     if (!confirm('Are you sure you want to delete this goal?')) return;
 
-    const managers = [yearGoals, monthGoals, weekGoals];
-    for (const manager of managers) {
-        try {
-            await manager.deleteGoal(goalId);
-            const element = document.getElementById(goalId);
-            if (element) {
-                jsPlumbInstance.remove(element);
-                element.remove();
-            }
-            break;
-        } catch (error) {
-            // Continue to next manager
-        }
+    const element = document.getElementById(goalId);
+    if (!element) {
+        console.error('Element not found:', goalId);
+        return;
     }
-}; 
+
+    const columnType = element.closest('.goal-column')?.id.split('-')[0];
+    if (!columnType) {
+        console.error('Column type not found for element:', element);
+        return;
+    }
+
+    const manager = getManagerForType(columnType);
+    if (!manager) {
+        console.error('No manager found for type:', columnType);
+        return;
+    }
+
+    try {
+        await manager.deleteGoal(goalId);
+        jsPlumbInstance.remove(element);
+        element.remove();
+    } catch (error) {
+        console.error('Error deleting goal:', error);
+        alert('Failed to delete goal');
+    }
+};
+
+// Add helper function for random colors
+function getRandomColor() {
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
+        '#D4A5A5', '#9B59B6', '#3498DB', '#E67E22', '#2ECC71'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+} 
