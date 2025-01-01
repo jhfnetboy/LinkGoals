@@ -1,5 +1,3 @@
-import { GoalsManager, createGoalElement } from './goals-util.js';
-
 // Initialize managers for each type
 const yearManager = new GoalsManager('year');
 const monthManager = new GoalsManager('month');
@@ -12,6 +10,14 @@ async function initializePage() {
     await updateParentSelections();
     console.log('Page initialization complete');
 }
+
+// Add event listener for page load
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM Content Loaded - Initializing page...');
+    initializePage().catch(error => {
+        console.error('Error during page initialization:', error);
+    });
+});
 
 // Load all goals
 async function loadAllGoals() {

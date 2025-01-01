@@ -20,18 +20,21 @@
             justify-content: center;
             max-width: 800px;
             margin: 0 auto 20px;
+            z-index: 10;
+            position: relative;
         }
 
         .nav-button {
             padding: 10px 20px;
-            margin-right: 10px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
+            transition: all 0.3s ease;
             background-color: #f0f0f0;
             color: #333;
-            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .nav-button:hover {
@@ -165,8 +168,8 @@
 </head>
 <body>
     <div class="nav-buttons">
-        <button class="nav-button" onclick="window.location.href='index.html'">Links</button>
-        <button class="nav-button active">Goals</button>
+        <a href="index.html" class="nav-button">Links</a>
+        <a href="#" class="nav-button active">Goals</a>
     </div>
 
     <div class="container">
@@ -202,6 +205,13 @@
         jLab Contribution 2024
     </div>
 
-    <script type="module" src="js/goals.js"></script>
+    <!-- Add Snow.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/pure-snow.js@2.1.0/pure-snow.js"></script>
+    
+    <!-- Add Fireworks.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/fireworks-js@2.x/dist/index.umd.js"></script>
+
+    <script src="js/goals-util.js"></script>
+    <script src="js/goals.js"></script>
 </body>
 </html> 

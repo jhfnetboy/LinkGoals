@@ -228,4 +228,7 @@ function getManagerForType(type) {
     return managers[type];
 }
 
-export { GoalsManager, createGoalElement, hashContent }; 
+// Make necessary functions and classes available globally
+window.GoalsManager = GoalsManager;
+window.createGoalElement = createGoalElement;
+window.hashContent = hashContent; 

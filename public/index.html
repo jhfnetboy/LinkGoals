@@ -24,6 +24,8 @@
             justify-content: center;
             max-width: 800px;
             margin: 0 auto 20px;
+            z-index: 10;
+            position: relative;
         }
 
         .nav-button {
@@ -35,6 +37,8 @@
             transition: all 0.3s ease;
             background-color: #f0f0f0;
             color: #333;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .nav-button:hover {
@@ -139,7 +143,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: auto;
+            pointer-events: none;
             z-index: 1;
         }
 
@@ -161,8 +165,8 @@
     <div id="fireworks-container"></div>
     
     <div class="nav-buttons">
-        <button class="nav-button active" onclick="window.location.href='index.html'">Links</button>
-        <button class="nav-button" onclick="window.location.href='goals.html'">Goals</button>
+        <a href="index.html" class="nav-button active">Links</a>
+        <a href="goals.html" class="nav-button">Goals</a>
     </div>
 
     <div id="links-container">
@@ -229,8 +233,8 @@
                     max: 30
                 },
                 rocketsPoint: {
-                    min: 30,
-                    max: 70
+                    min: 0,
+                    max: 100
                 },
                 lineWidth: {
                     explosion: {
@@ -251,7 +255,7 @@
                     max: 0.02
                 },
                 mouse: {
-                    click: true,
+                    click: false,
                     move: false,
                     max: 3
                 },
@@ -263,8 +267,8 @@
                         'https://fireworks.js.org/sounds/explosion2.mp3'
                     ],
                     volume: {
-                        min: 30,
-                        max: 60
+                        min: 50,
+                        max: 80
                     }
                 }
             });
@@ -272,9 +276,17 @@
             // Start the fireworks
             fireworks.start();
 
-            // Add mouse click event for manual launch
-            container.addEventListener('click', () => {
-                fireworks.launch(5);
+            // Add keyboard event for spacebar
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault(); // Prevent page scrolling
+                    // Launch multiple fireworks at random positions
+                    for (let i = 0; i < 5; i++) {
+                        setTimeout(() => {
+                            fireworks.launch(1);
+                        }, i * 200); // Spread out the launches
+                    }
+                }
             });
 
             // Test sound on page load
