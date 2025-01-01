@@ -55,7 +55,10 @@ function updateGoalsList(containerId, goals, type) {
 async function addGoal(type) {
     const input = document.querySelector(`#${type}-input`);
     const content = input.value.trim();
-    if (!content) return;
+    if (!content) {
+        alert('Please enter a goal content');
+        return;
+    }
 
     try {
         console.log(`Adding new ${type} goal:`, content);
@@ -63,6 +66,7 @@ async function addGoal(type) {
         const goal = await manager.saveGoal({ content });
         console.log('Goal saved:', goal);
         await loadAllGoals();
+        await updateParentSelections();
         input.value = '';
     } catch (error) {
         console.error('Error adding goal:', error);

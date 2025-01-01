@@ -3,112 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local Links Manager</title>
+    <title>Links</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
         }
-        .nav-tabs {
-            margin-bottom: 20px;
-        }
-        .nav-tabs a {
-            text-decoration: none;
-            padding: 10px 20px;
-            color: #333;
-            border: 1px solid #ddd;
-            margin-right: 5px;
-        }
-        .controls {
-            margin-bottom: 20px;
-        }
-        .input-group {
-            margin-bottom: 10px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 10px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-        th {
-            background-color: #f5f5f5;
-        }
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-        button {
-            padding: 5px 10px;
-            cursor: pointer;
-        }
-        input[type="text"] {
-            padding: 5px;
-            width: 300px;
-        }
-        #saveButton {
-            display: none;
-        }
-        .top-buttons {
+
+        .nav-buttons {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
         }
-        .top-button {
+
+        .nav-button {
             padding: 10px 20px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
             background-color: #f0f0f0;
-            transition: background-color 0.3s;
+            color: #333;
         }
-        .top-button:hover {
+
+        .nav-button:hover {
             background-color: #e0e0e0;
         }
-        .top-button.active {
+
+        .nav-button.active {
             background-color: #4CAF50;
             color: white;
+        }
+
+        #links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .link-item {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .link-content {
+            flex-grow: 1;
+        }
+
+        .link-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .link-actions button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+        }
+
+        .link-actions button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .delete-button {
+            color: #ff4444;
+        }
+
+        .add-link-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .add-link-form input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .add-link-form button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+
+        .add-link-form button:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
 <body>
-    <div class="nav-tabs">
-        <a href="/">Links Manager</a>
-        <a href="/goals.html">Goals Manager</a>
+    <div class="nav-buttons">
+        <button class="nav-button active" onclick="window.location.href='index.html'">Links</button>
+        <button class="nav-button" onclick="window.location.href='goals.html'">Goals</button>
     </div>
 
-    <h1>Local Links Manager</h1>
-    
-    <div class="controls">
-        <div class="input-group">
-            <input type="text" id="linkInput" placeholder="Format: name::url::notes" />
+    <div id="links-container">
+        <div class="add-link-form">
+            <input type="text" id="linkInput" placeholder="Format: name::url::notes" onkeypress="if(event.key === 'Enter') addLink()">
             <button onclick="addLink()">Add Link</button>
             <button onclick="saveLinks()">Save to File</button>
             <button onclick="loadLinks()">Load from File</button>
         </div>
-    </div>
-
-    <table id="linksTable">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>URL</th>
-                <th>Notes</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <div class="top-buttons">
-        <button class="top-button" onclick="activateButton(this, '/goals.html')">Goals</button>
-        <button class="top-button" onclick="activateButton(this, '/links.html')">Links</button>
+        <table id="linksTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
 
     <script>
@@ -133,9 +157,9 @@
                     <td>${link.name}</td>
                     <td><a href="${link.url}" title="${link.url}" target="_blank">${truncatedUrl}</a></td>
                     <td>${link.notes || ''}</td>
-                    <td class="action-buttons">
+                    <td class="link-actions">
                         <button onclick="editLink(${index})">Edit</button>
-                        <button onclick="deleteLink(${index})">Delete</button>
+                        <button onclick="deleteLink(${index})" class="delete-button">Delete</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -148,17 +172,14 @@
                 const value = input.value.trim();
                 
                 if (!value) {
-                    alert('Please enter a link in the format: name,url,notes');
+                    alert('Please enter a link in the format: name::url::notes');
                     return;
                 }
-
-                // Convert commas to double colons for backend processing
-                const processedValue = value.replace(/,/g, '::');
 
                 const response = await fetch('/api/links', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: processedValue })
+                    body: JSON.stringify({ name: value })
                 });
 
                 const result = await response.json();
@@ -174,7 +195,7 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert(error.message.replace(/::/, ',')); // Replace :: with , in error messages
+                alert(error.message);
             }
         }
 
@@ -231,7 +252,6 @@
                     throw new Error(result.error || 'Failed to save links');
                 }
 
-                // Update the table with the returned links
                 if (result.links) {
                     updateTable(result.links);
                     console.log('Links saved successfully');
@@ -256,32 +276,6 @@
                 alert('Failed to load links. Please try again.');
             }
         }
-
-        function activateButton(button, url) {
-            // Remove active class from all buttons
-            document.querySelectorAll('.top-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Add active class to clicked button
-            button.classList.add('active');
-            
-            // Navigate to the URL
-            window.location.href = url;
-        }
-
-        // Set active state based on current URL
-        window.addEventListener('load', () => {
-            const path = window.location.pathname;
-            const buttons = document.querySelectorAll('.top-button');
-            
-            buttons.forEach(button => {
-                const buttonUrl = button.getAttribute('onclick').match(/'([^']+)'/)[1];
-                if (path === buttonUrl) {
-                    button.classList.add('active');
-                }
-            });
-        });
     </script>
 </body>
 </html> 

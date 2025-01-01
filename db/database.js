@@ -170,24 +170,76 @@ const goalsDb = {
                             return;
                         }
 
-                        // Update child goals' colors if any
-                        db.run(
-                            'UPDATE goals SET background_color = ? WHERE parent_id = ?',
-                            [backgroundColor, id],
-                            (err) => {
-                                if (err) {
-                                    console.error('Error updating child goals:', err);
-                                    reject(err);
-                                    return;
-                                }
+                        // Function to recursively update child goals' colors
+                        const updateChildColors = (parentId, color) => {
+                            return new Promise((resolve, reject) => {
+                                // First get all direct child goals
+                                db.all('SELECT id, type FROM goals WHERE parent_id = ?', [parentId], (err, children) => {
+                                    if (err) {
+                                        if (err.message.includes('no such column: parent_id')) {
+                                            resolve();
+                                            return;
+                                        }
+                                        reject(err);
+                                        return;
+                                    }
+
+                                    if (!children || children.length === 0) {
+                                        resolve();
+                                        return;
+                                    }
+
+                                    // Update each child and their children
+                                    const updatePromises = children.map(child => {
+                                        return new Promise((resolve, reject) => {
+                                            // Update this child's color
+                                            db.run(
+                                                'UPDATE goals SET background_color = ? WHERE id = ?',
+                                                [color, child.id],
+                                                async (err) => {
+                                                    if (err) {
+                                                        reject(err);
+                                                        return;
+                                                    }
+                                                    // Recursively update this child's children
+                                                    try {
+                                                        await updateChildColors(child.id, color);
+                                                        resolve();
+                                                    } catch (err) {
+                                                        reject(err);
+                                                    }
+                                                }
+                                            );
+                                        });
+                                    });
+
+                                    Promise.all(updatePromises)
+                                        .then(() => resolve())
+                                        .catch(err => reject(err));
+                                });
+                            });
+                        };
+
+                        // Update all child goals recursively
+                        updateChildColors(id, backgroundColor)
+                            .then(() => {
                                 resolve({
                                     id,
                                     content: normalizedContent,
                                     backgroundColor,
                                     parentId
                                 });
-                            }
-                        );
+                            })
+                            .catch(err => {
+                                console.error('Error updating child colors:', err);
+                                // Even if updating child colors fails, return the updated goal
+                                resolve({
+                                    id,
+                                    content: normalizedContent,
+                                    backgroundColor,
+                                    parentId
+                                });
+                            });
                     }
                 );
             });

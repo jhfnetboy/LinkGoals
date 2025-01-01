@@ -155,7 +155,7 @@
         <div class="goal-column" id="year-goals">
             <h2>Year Goals</h2>
             <div class="goal-header">
-                <input type="text" id="year-input" class="goal-input" placeholder="Add a year goal...">
+                <input type="text" id="year-input" class="goal-input" placeholder="Add a year goal..." onkeypress="if(event.key === 'Enter') addGoal('year')">
                 <button class="add-button" onclick="addGoal('year')">+</button>
             </div>
             <div class="goal-list" id="year-list"></div>
@@ -164,7 +164,7 @@
         <div class="goal-column" id="month-goals">
             <h2>Month Goals</h2>
             <div class="goal-header">
-                <input type="text" id="month-input" class="goal-input" placeholder="Add a month goal...">
+                <input type="text" id="month-input" class="goal-input" placeholder="Add a month goal..." onkeypress="if(event.key === 'Enter') addGoal('month')">
                 <button class="add-button" onclick="addGoal('month')">+</button>
             </div>
             <div class="goal-list" id="month-list"></div>
@@ -173,7 +173,7 @@
         <div class="goal-column" id="week-goals">
             <h2>Week Goals</h2>
             <div class="goal-header">
-                <input type="text" id="week-input" class="goal-input" placeholder="Add a week goal...">
+                <input type="text" id="week-input" class="goal-input" placeholder="Add a week goal..." onkeypress="if(event.key === 'Enter') addGoal('week')">
                 <button class="add-button" onclick="addGoal('week')">+</button>
             </div>
             <div class="goal-list" id="week-list"></div>
