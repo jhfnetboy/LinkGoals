@@ -1,12 +1,13 @@
 # 介绍
 自己用的小工具，clone 到本地，运行在本地，数据存储在本地文件夹
+鼠标点击放烟火，哈哈，新增特效
 ```
 安装依赖
 npm install 
 运行
 npm start 
 ```
-![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501011330537.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501011407268.png)
 
 我的习惯是访问 http://localhost:3086/index.html，pin 在 chrome 日常使用
 
