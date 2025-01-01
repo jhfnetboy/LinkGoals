@@ -8,7 +8,7 @@ npm install
 运行
 npm start 
 ```
-![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501011407268.png)
+
 
 我的习惯是访问 http://localhost:3086/index.html，pin 在 chrome 日常使用
 
@@ -20,7 +20,7 @@ npm start
 1. 添加链接：name, url, tag
 2. 删除链接
 3. 编辑链接
-![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501011323757.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501011407268.png)
 ## 目标管理
 
 1. 添加年度目标
