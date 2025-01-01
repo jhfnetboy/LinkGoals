@@ -117,7 +117,7 @@
 
     <div id="links-container">
         <div class="add-link-form">
-            <input type="text" id="linkInput" placeholder="Format: name::url::notes" onkeypress="if(event.key === 'Enter') addLink()">
+            <input type="text" id="linkInput" placeholder="Format: name, url, tag" onkeypress="if(event.key === 'Enter') addLink()">
             <button onclick="addLink()">Add Link</button>
             <button onclick="saveLinks()">Save to File</button>
             <button onclick="loadLinks()">Load from File</button>
@@ -172,7 +172,13 @@
                 const value = input.value.trim();
                 
                 if (!value) {
-                    alert('Please enter a link in the format: name::url::notes');
+                    alert('Please enter a link in the format: name, url, tag');
+                    return;
+                }
+
+                const [name, url, tag] = value.split(',').map(s => s.trim());
+                if (!name || !url) {
+                    alert('Name and URL are required');
                     return;
                 }
 

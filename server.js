@@ -1,247 +1,112 @@
 const express = require('express');
-const cors = require('cors');
-const fs = require('node:fs').promises;
-const csv = require('csv-parser');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const path = require('node:path');
+const { goalsDb, linksDb } = require('./db/database');
 
 const app = express();
-const PORT = 3086;
+const port = 3086;
 
-app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Import goals routes
-const goalsRouter = require('./routes/goals');
-
-// Initialize empty links array
-let links = [];
-
-// CSV file configuration
-const defaultCsvPath = path.join(__dirname, 'data', 'default.csv');
-const csvWriter = createCsvWriter({
-    path: defaultCsvPath,
-    header: [
-        { id: 'name', title: 'NAME' },
-        { id: 'url', title: 'URL' },
-        { id: 'notes', title: 'NOTES' }
-    ]
-});
-
-// Add this at the top with other constants
-const defaultHeader = 'NAME,URL,NOTES\n';
-
-// Add this function to initialize the CSV file if it doesn't exist
-async function initializeCsvFile() {
+// Links API routes
+app.get('/api/load', async (req, res) => {
     try {
-        // Check if file exists
-        try {
-            await fs.access(defaultCsvPath);
-            console.log('CSV file exists');
-        } catch {
-            // Create file with header if it doesn't exist
-            console.log('Creating new CSV file with header');
-            await fs.writeFile(defaultCsvPath, defaultHeader);
-        }
-
-        // Read file content
-        const content = await fs.readFile(defaultCsvPath, 'utf-8');
-        if (!content.includes('NAME,URL,NOTES')) {
-            console.log('Adding header to CSV file');
-            await fs.writeFile(defaultCsvPath, defaultHeader + content);
-        }
-    } catch (error) {
-        console.error('Error initializing CSV file:', error);
-    }
-}
-
-// Create data directory if it doesn't exist
-async function ensureDataDir() {
-    const dataDir = path.join(__dirname, 'data');
-    try {
-        await fs.mkdir(dataDir, { recursive: true });
-    } catch (err) {
-        if (err.code !== 'EEXIST') throw err;
-    }
-}
-
-// Load links from CSV file
-async function loadLinksFromCsv(filePath) {
-    try {
-        await fs.access(filePath);
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        
-        if (!fileContent.trim()) {
-            console.log('CSV file is empty');
-            return [];
-        }
-
-        return new Promise((resolve) => {
-            const results = [];
-            const stream = require('node:stream');
-            const bufferStream = new stream.PassThrough();
-            bufferStream.end(fileContent);
-            
-            bufferStream
-                .pipe(csv())
-                .on('data', (data) => {
-                    if (data.NAME && data.URL) {
-                        results.push({
-                            name: data.NAME,
-                            url: data.URL,
-                            notes: data.NOTES || ''
-                        });
-                    }
-                })
-                .on('end', () => {
-                    console.log('Loaded existing links:', results);
-                    resolve(results);
-                });
-        });
-    } catch (error) {
-        console.log('Error reading CSV:', error);
-        return [];
-    }
-}
-
-// API Endpoints for links
-app.get('/api/links', async (req, res) => {
-    try {
+        const links = await linksDb.getLinks();
         res.json(links);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to get links' });
-    }
-});
-
-// Add new endpoint to clear CSV file
-app.post('/api/clear', async (req, res) => {
-    try {
-        await ensureDataDir();
-        await csvWriter.writeRecords([]);
-        console.log('CSV file cleared');
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error clearing CSV:', error);
-        res.status(500).json({ error: 'Failed to clear CSV file' });
+        console.error('Error loading links:', error);
+        res.status(500).json({ error: 'Failed to load links' });
     }
 });
 
 app.post('/api/links', async (req, res) => {
     try {
-        let newLink;
         const { name } = req.body;
-
-        // Handle name::url::notes format
-        if (name && name.includes('::')) {
-            const parts = name.split('::').map(part => part.trim());
-            
-            const newName = parts[0];
-            let newUrl = parts[1] || '';
-            const newNotes = parts[2] || '';
-
-            if (newUrl && !newUrl.match(/^https?:\/\//)) {
-                newUrl = `https://${newUrl}`;
-            }
-
-            newLink = { 
-                name: newName, 
-                url: newUrl, 
-                notes: newNotes 
-            };
-        } else {
-            return res.status(400).json({ error: 'Please use format: name::url::notes' });
+        const [linkName, url, tag] = name.split(',').map(s => s.trim());
+        if (!linkName || !url) {
+            res.status(400).json({ error: 'Invalid link format' });
+            return;
         }
 
-        // Validate required fields
-        if (!newLink.name || !newLink.url) {
-            return res.status(400).json({ error: 'Name and URL are required' });
-        }
+        // Add https:// if not present
+        const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
 
-        // Check for duplicates in current links array
-        const isDuplicate = links.some(link => 
-            link.name === newLink.name && 
-            link.url === newLink.url
-        );
-
-        if (isDuplicate) {
-            console.log('Duplicate link detected:', newLink);
-            return res.status(400).json({ error: 'Link already exists' });
-        }
-
-        // Add to existing links array
-        links.push(newLink);
-        
-        try {
-            await csvWriter.writeRecords(links);
-            console.log('All links saved to CSV successfully');
-        } catch (writeError) {
-            console.error('Error writing to CSV:', writeError);
-            throw writeError;
-        }
-
-        res.json({ success: true, links: links });
+        const links = await linksDb.saveLink({ 
+            name: linkName, 
+            url: fullUrl, 
+            notes: tag || '' 
+        });
+        res.json({ success: true, links });
     } catch (error) {
-        console.error('Error adding link:', error);
-        res.status(500).json({ error: 'Failed to add link' });
+        console.error('Error saving link:', error);
+        res.status(500).json({ error: 'Failed to save link' });
     }
 });
 
-app.put('/api/links/:id', async (req, res) => {
+app.put('/api/links/:index', async (req, res) => {
     try {
-        const { id } = req.params;
+        const { index } = req.params;
         const { name, url, notes } = req.body;
-        links[id] = { name, url, notes };
-        res.json(links[id]);
+        const links = await linksDb.updateLink(Number.parseInt(index, 10), { name, url, notes });
+        res.json({ success: true, links });
     } catch (error) {
+        console.error('Error updating link:', error);
         res.status(500).json({ error: 'Failed to update link' });
     }
 });
 
-app.delete('/api/links/:id', async (req, res) => {
+app.delete('/api/links/:index', async (req, res) => {
     try {
-        const { id } = req.params;
-        links.splice(id, 1);
-        res.json({ message: 'Link deleted successfully' });
+        const { index } = req.params;
+        const result = await linksDb.deleteLink(Number.parseInt(index, 10));
+        res.json(result);
     } catch (error) {
+        console.error('Error deleting link:', error);
         res.status(500).json({ error: 'Failed to delete link' });
     }
 });
 
-app.post('/api/save', async (req, res) => {
+// Goals API routes
+app.get('/api/goals/:type', async (req, res) => {
     try {
-        await ensureDataDir();
-        await csvWriter.writeRecords(links);
-        res.json({ message: 'Links saved successfully' });
+        const goals = await goalsDb.getGoals(req.params.type);
+        res.json(goals);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to save links' });
+        console.error('Error getting goals:', error);
+        res.status(500).json({ error: 'Failed to get goals' });
     }
 });
 
-app.get('/api/load', async (req, res) => {
+app.post('/api/goals/:type', async (req, res) => {
     try {
-        links = await loadLinksFromCsv(defaultCsvPath);
-        res.json(links);
+        const goal = await goalsDb.saveGoal(req.body, req.params.type);
+        res.json(goal);
     } catch (error) {
-        res.json(links);
+        console.error('Error saving goal:', error);
+        res.status(500).json({ error: 'Failed to save goal' });
     }
 });
 
-// Mount goals routes
-app.use('/api/goals', goalsRouter);
-
-// Initialize
-(async () => {
+app.put('/api/goals/:type/:id', async (req, res) => {
     try {
-        await ensureDataDir();
-        await initializeCsvFile();
-        links = await loadLinksFromCsv(defaultCsvPath);
-        console.log('Initial links loaded:', links);
+        const goal = await goalsDb.updateGoal(req.params.id, req.body, req.params.type);
+        res.json(goal);
     } catch (error) {
-        console.error('Initialization error:', error);
+        console.error('Error updating goal:', error);
+        res.status(500).json({ error: 'Failed to update goal' });
     }
-})();
+});
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+app.delete('/api/goals/:type/:id', async (req, res) => {
+    try {
+        const result = await goalsDb.deleteGoal(req.params.id, req.params.type);
+        res.json(result);
+    } catch (error) {
+        console.error('Error deleting goal:', error);
+        res.status(500).json({ error: 'Failed to delete goal' });
+    }
+});
+
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
 }); 

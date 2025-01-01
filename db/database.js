@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('node:path');
 
 // Create database connection
-const dbPath = path.join(__dirname, '..', 'data', 'goals.db');
+const dbPath = path.join(__dirname, '..', 'data', 'jLab.db');
 console.log('Initializing SQLite database at:', dbPath);
 const db = new sqlite3.Database(dbPath);
 
@@ -26,6 +26,22 @@ function initDatabase() {
                     return;
                 }
                 console.log('Goals table initialized');
+            });
+
+            // Create links table
+            db.run(`CREATE TABLE IF NOT EXISTS links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                notes TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating links table:', err);
+                    reject(err);
+                    return;
+                }
+                console.log('Links table initialized');
                 resolve();
             });
         });
@@ -271,6 +287,123 @@ const goalsDb = {
     }
 };
 
+// Helper functions for links
+const linksDb = {
+    // Get all links
+    getLinks: () => {
+        return new Promise((resolve, reject) => {
+            db.all('SELECT * FROM links ORDER BY created_at DESC', (err, rows) => {
+                if (err) {
+                    console.error('Error getting links:', err);
+                    reject(err);
+                    return;
+                }
+                resolve(rows.map(row => ({
+                    name: row.name,
+                    url: row.url,
+                    notes: row.notes || ''
+                })));
+            });
+        });
+    },
+
+    // Save a new link
+    saveLink: (link) => {
+        return new Promise((resolve, reject) => {
+            const { name, url, notes = '' } = link;
+            db.run(
+                'INSERT INTO links (name, url, notes) VALUES (?, ?, ?)',
+                [name, url, notes],
+                async (err) => {
+                    if (err) {
+                        console.error('Error saving link:', err);
+                        reject(err);
+                        return;
+                    }
+                    try {
+                        const links = await linksDb.getLinks();
+                        resolve(links);
+                    } catch (err) {
+                        reject(err);
+                    }
+                }
+            );
+        });
+    },
+
+    // Update a link
+    updateLink: (index, link) => {
+        return new Promise((resolve, reject) => {
+            const { name, url, notes = '' } = link;
+            // First get the ID of the link at the specified index
+            db.get('SELECT id FROM links ORDER BY created_at DESC LIMIT 1 OFFSET ?', [index], (err, row) => {
+                if (err) {
+                    console.error('Error getting link ID:', err);
+                    reject(err);
+                    return;
+                }
+                if (!row) {
+                    reject(new Error('Link not found'));
+                    return;
+                }
+                // Update the link
+                db.run(
+                    'UPDATE links SET name = ?, url = ?, notes = ? WHERE id = ?',
+                    [name, url, notes, row.id],
+                    async (err) => {
+                        if (err) {
+                            console.error('Error updating link:', err);
+                            reject(err);
+                            return;
+                        }
+                        try {
+                            const links = await linksDb.getLinks();
+                            resolve(links);
+                        } catch (err) {
+                            reject(err);
+                        }
+                    }
+                );
+            });
+        });
+    },
+
+    // Delete a link
+    deleteLink: (index) => {
+        return new Promise((resolve, reject) => {
+            // First get the ID of the link at the specified index
+            db.get('SELECT id FROM links ORDER BY created_at DESC LIMIT 1 OFFSET ?', [index], (err, row) => {
+                if (err) {
+                    console.error('Error getting link ID:', err);
+                    reject(err);
+                    return;
+                }
+                if (!row) {
+                    reject(new Error('Link not found'));
+                    return;
+                }
+                // Delete the link
+                db.run('DELETE FROM links WHERE id = ?', [row.id], async (err) => {
+                    if (err) {
+                        console.error('Error deleting link:', err);
+                        reject(err);
+                        return;
+                    }
+                    try {
+                        const links = await linksDb.getLinks();
+                        resolve({
+                            success: true,
+                            links
+                        });
+                    } catch (err) {
+                        reject(err);
+                    }
+                });
+            });
+        });
+    }
+};
+
 // Initialize database on module load
 console.log('Initializing database...');
 initDatabase()
@@ -280,4 +413,4 @@ initDatabase()
         process.exit(1);
     });
 
-module.exports = { goalsDb }; 
+module.exports = { goalsDb, linksDb }; 
