@@ -6,7 +6,7 @@ npm install
 运行
 npm start 
 ```
-![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501011323368.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501011330537.png)
 
 我的习惯是访问 http://localhost:3086/index.html，pin 在 chrome 日常使用
 
