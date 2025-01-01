@@ -150,23 +150,58 @@ async function selectParent(goalId, parentId, type) {
 // Update parent selections in dropdowns
 async function updateParentSelections() {
     console.log('Updating parent selections...');
-    const yearGoals = await yearManager.loadGoals();
-    const monthGoals = await monthManager.loadGoals();
+    try {
+        // Load all goals
+        const yearGoals = await yearManager.loadGoals();
+        const monthGoals = await monthManager.loadGoals();
 
-    // Update month goals' parent selections
-    for (const select of document.querySelectorAll('#month-goals .parent-selection select')) {
-        select.innerHTML = `<option value="">Select year goal</option>
-            ${yearGoals.map(goal => 
-                `<option value="${goal.id}">${goal.content}</option>`
-            ).join('')}`;
-    }
+        console.log('Parent goals loaded:', { yearGoals, monthGoals });
 
-    // Update week goals' parent selections
-    for (const select of document.querySelectorAll('#week-goals .parent-selection select')) {
-        select.innerHTML = `<option value="">Select month goal</option>
-            ${monthGoals.map(goal => 
-                `<option value="${goal.id}">${goal.content}</option>`
-            ).join('')}`;
+        // Update month goals' parent selections
+        const monthSelects = document.querySelectorAll('#month-goals .parent-selection select');
+        console.log('Found month selects:', monthSelects.length);
+        
+        for (const select of monthSelects) {
+            // Get the goal ID from the parent goal item
+            const goalItem = select.closest('.goal-item');
+            const goalId = goalItem?.id;
+            const currentGoal = goalId ? monthManager.goals.get(goalId) : null;
+            
+            // Build options HTML
+            let optionsHtml = '<option value="">Select year goal</option>';
+            for (const yearGoal of yearGoals) {
+                const selected = currentGoal?.parentId === yearGoal.id ? 'selected' : '';
+                optionsHtml += `<option value="${yearGoal.id}" ${selected}>${yearGoal.content}</option>`;
+            }
+            select.innerHTML = optionsHtml;
+            
+            // Disable if already has a parent
+            select.disabled = Boolean(currentGoal?.parentId);
+        }
+
+        // Update week goals' parent selections
+        const weekSelects = document.querySelectorAll('#week-goals .parent-selection select');
+        console.log('Found week selects:', weekSelects.length);
+        
+        for (const select of weekSelects) {
+            // Get the goal ID from the parent goal item
+            const goalItem = select.closest('.goal-item');
+            const goalId = goalItem?.id;
+            const currentGoal = goalId ? weekManager.goals.get(goalId) : null;
+            
+            // Build options HTML
+            let optionsHtml = '<option value="">Select month goal</option>';
+            for (const monthGoal of monthGoals) {
+                const selected = currentGoal?.parentId === monthGoal.id ? 'selected' : '';
+                optionsHtml += `<option value="${monthGoal.id}" ${selected}>${monthGoal.content}</option>`;
+            }
+            select.innerHTML = optionsHtml;
+            
+            // Disable if already has a parent
+            select.disabled = Boolean(currentGoal?.parentId);
+        }
+    } catch (error) {
+        console.error('Error updating parent selections:', error);
     }
 }
 
