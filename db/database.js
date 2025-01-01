@@ -140,7 +140,7 @@ const goalsDb = {
         return new Promise((resolve, reject) => {
             console.log('Database updating goal:', { id, goal, type });
             
-            const { content, backgroundColor = '#f9f9f9' } = goal;
+            const { content, backgroundColor = '#f9f9f9', parentId } = goal;
             
             // First get the current goal data
             db.get('SELECT * FROM goals WHERE id = ? AND type = ?', [id, type], (err, currentGoal) => {
@@ -161,69 +161,33 @@ const goalsDb = {
                 
                 // Update the goal
                 db.run(
-                    'UPDATE goals SET content = ?, background_color = ? WHERE id = ? AND type = ?',
-                    [normalizedContent, backgroundColor, id, type],
-                    async (err) => {
+                    'UPDATE goals SET content = ?, background_color = ?, parent_id = ? WHERE id = ? AND type = ?',
+                    [normalizedContent, backgroundColor, parentId, id, type],
+                    (err) => {
                         if (err) {
                             console.error('Error updating goal:', err);
                             reject(err);
                             return;
                         }
 
-                        try {
-                            // Check if there are any child goals
-                            const childGoals = await new Promise((resolve, reject) => {
-                                db.all('SELECT id FROM goals WHERE parent_id = ?', [id], (err, rows) => {
-                                    if (err) {
-                                        // If error is due to missing column, treat as no child goals
-                                        if (err.message.includes('no such column: parent_id')) {
-                                            resolve([]);
-                                            return;
-                                        }
-                                        reject(err);
-                                        return;
-                                    }
-                                    resolve(rows || []);
-                                });
-                            });
-
-                            // If there are child goals, update their colors
-                            if (childGoals.length > 0) {
-                                await new Promise((resolve, reject) => {
-                                    db.run(
-                                        'UPDATE goals SET background_color = ? WHERE parent_id = ?',
-                                        [backgroundColor, id],
-                                        (err) => {
-                                            if (err) {
-                                                reject(err);
-                                                return;
-                                            }
-                                            resolve();
-                                        }
-                                    );
-                                });
-                            }
-
-                            // Return the updated goal
-                            resolve({
-                                id,
-                                content: normalizedContent,
-                                backgroundColor,
-                                parentId: currentGoal.parent_id
-                            });
-                        } catch (error) {
-                            // If error is related to parent_id column, just return the updated goal
-                            if (error.message.includes('no such column: parent_id')) {
+                        // Update child goals' colors if any
+                        db.run(
+                            'UPDATE goals SET background_color = ? WHERE parent_id = ?',
+                            [backgroundColor, id],
+                            (err) => {
+                                if (err) {
+                                    console.error('Error updating child goals:', err);
+                                    reject(err);
+                                    return;
+                                }
                                 resolve({
                                     id,
                                     content: normalizedContent,
                                     backgroundColor,
-                                    parentId: null
+                                    parentId
                                 });
-                                return;
                             }
-                            reject(error);
-                        }
+                        );
                     }
                 );
             });

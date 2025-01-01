@@ -121,26 +121,31 @@ async function selectParent(goalId, parentId, type) {
         console.log('Selecting parent:', { goalId, parentId, type });
         const manager = getManagerForType(type);
         const parentManager = getManagerForType(type === 'month' ? 'year' : 'month');
-        const parent = await parentManager.goals.get(parentId);
         
+        // Get parent goal
+        const parent = parentManager.goals.get(parentId);
         if (!parent) {
             console.error('Parent goal not found:', parentId);
             return;
         }
 
+        // Get current goal
         const goal = manager.goals.get(goalId);
         if (!goal) {
             console.error('Goal not found:', goalId);
             return;
         }
 
-        await manager.saveGoal({
+        // Update the goal with parent ID and inherit parent's color
+        await manager.updateGoal(goalId, {
             ...goal,
             parentId,
             backgroundColor: parent.backgroundColor
         });
 
+        // Reload all goals and update parent selections
         await loadAllGoals();
+        await updateParentSelections();
     } catch (error) {
         console.error('Error selecting parent:', error);
         alert('Failed to set parent goal');

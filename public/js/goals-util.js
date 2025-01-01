@@ -146,7 +146,8 @@ class GoalsManager {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...goal,
-                    id // Make sure to include the id
+                    id,
+                    type: this.type // Make sure type is included
                 })
             });
             
