@@ -55,6 +55,26 @@
         #saveButton {
             display: none;
         }
+        .top-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .top-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            transition: background-color 0.3s;
+        }
+        .top-button:hover {
+            background-color: #e0e0e0;
+        }
+        .top-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -85,6 +105,11 @@
         </thead>
         <tbody></tbody>
     </table>
+
+    <div class="top-buttons">
+        <button class="top-button" onclick="activateButton(this, '/goals.html')">Goals</button>
+        <button class="top-button" onclick="activateButton(this, '/links.html')">Links</button>
+    </div>
 
     <script>
         // Load links when page loads
@@ -231,6 +256,32 @@
                 alert('Failed to load links. Please try again.');
             }
         }
+
+        function activateButton(button, url) {
+            // Remove active class from all buttons
+            document.querySelectorAll('.top-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to clicked button
+            button.classList.add('active');
+            
+            // Navigate to the URL
+            window.location.href = url;
+        }
+
+        // Set active state based on current URL
+        window.addEventListener('load', () => {
+            const path = window.location.pathname;
+            const buttons = document.querySelectorAll('.top-button');
+            
+            buttons.forEach(button => {
+                const buttonUrl = button.getAttribute('onclick').match(/'([^']+)'/)[1];
+                if (path === buttonUrl) {
+                    button.classList.add('active');
+                }
+            });
+        });
     </script>
 </body>
 </html> 
