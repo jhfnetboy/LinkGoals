@@ -15,23 +15,64 @@ function hashContent(content) {
     return Math.abs(hash).toString();
 }
 
-function createGoalElement(goal) {
+function createGoalElement(goal, type) {
     const div = document.createElement('div');
     div.className = 'goal-item';
-    // Always use the provided ID for existing goals
     div.id = goal.id;
     div.style.backgroundColor = goal.backgroundColor || '#f9f9f9';
     
-    div.innerHTML = `
-        <span class="goal-content" contenteditable="true">${goal.content}</span>
-        <div class="goal-actions">
-            <input type="color" value="${goal.backgroundColor || '#f9f9f9'}" 
-                onchange="updateGoalColor('${div.id}', this.value)">
-            <button onclick="deleteGoal('${div.id}')">×</button>
-            <span class="drag-handle">></span>
-        </div>
-    `;
-
+    // Add goal content
+    const contentSpan = document.createElement('span');
+    contentSpan.className = 'goal-content';
+    contentSpan.contentEditable = 'true';
+    contentSpan.textContent = goal.content;
+    contentSpan.addEventListener('blur', async () => {
+        const newContent = contentSpan.textContent.trim();
+        if (newContent && newContent !== goal.content) {
+            try {
+                const manager = getManagerForType(type);
+                await manager.updateGoal(goal.id, { 
+                    ...goal,
+                    content: newContent 
+                });
+            } catch (error) {
+                console.error('Error updating goal content:', error);
+                contentSpan.textContent = goal.content; // Revert on error
+            }
+        }
+    });
+    div.appendChild(contentSpan);
+    
+    // Add parent selection for month and week goals
+    if (type === 'month' || type === 'week') {
+        const parentDiv = document.createElement('div');
+        parentDiv.className = 'parent-selection';
+        const select = document.createElement('select');
+        select.disabled = !!goal.parentId;
+        select.innerHTML = `<option value="">Select ${type === 'month' ? 'year' : 'month'} goal</option>`;
+        select.addEventListener('change', (e) => selectParent(goal.id, e.target.value, type));
+        parentDiv.appendChild(select);
+        div.appendChild(parentDiv);
+    }
+    
+    // Add goal actions
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'goal-actions';
+    
+    // Color picker
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = goal.backgroundColor || '#f9f9f9';
+    colorInput.addEventListener('change', (e) => updateGoalColor(goal.id, e.target.value));
+    actionsDiv.appendChild(colorInput);
+    
+    // Delete button
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = '×';
+    deleteButton.onclick = () => deleteGoal(goal.id);
+    actionsDiv.appendChild(deleteButton);
+    
+    div.appendChild(actionsDiv);
     return div;
 }
 
@@ -60,29 +101,16 @@ class GoalsManager {
         }
     }
 
-    async saveGoal(goal) {
+    async saveGoal(goal, parentId = null) {
         try {
             // For new goals, generate a unique hash ID
             const id = goal.id || hashContent(goal.content);
-            console.log('Saving goal with hash:', { id, content: goal.content });
-
-            // Check if goal with this ID already exists in cache
-            if (this.goals.has(id)) {
-                console.log('Goal with this ID already exists:', id);
-                return this.goals.get(id);
-            }
-
-            // Check if goal with same content exists
-            for (const [existingId, existingGoal] of this.goals) {
-                if (existingGoal.content.trim().toLowerCase() === goal.content.trim().toLowerCase()) {
-                    console.log('Goal with same content already exists:', existingId);
-                    return existingGoal;
-                }
-            }
+            console.log('Saving goal with hash:', { id, content: goal.content, parentId });
 
             const goalToSave = {
                 ...goal,
                 id,
+                parentId,
                 backgroundColor: goal.backgroundColor || '#f9f9f9'
             };
 
@@ -92,7 +120,11 @@ class GoalsManager {
                 body: JSON.stringify(goalToSave)
             });
             
-            if (!response.ok) throw new Error('Failed to save goal');
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to save goal');
+            }
+
             const savedGoal = await response.json();
             
             // Update cache
@@ -115,7 +147,11 @@ class GoalsManager {
                 body: JSON.stringify(goal)
             });
             
-            if (!response.ok) throw new Error('Failed to update goal');
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update goal');
+            }
+
             const updatedGoal = await response.json();
             
             // Update cache
@@ -134,7 +170,10 @@ class GoalsManager {
                 method: 'DELETE'
             });
             
-            if (!response.ok) throw new Error('Failed to delete goal');
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete goal');
+            }
             
             // Remove from cache
             this.goals.delete(id);
@@ -146,47 +185,30 @@ class GoalsManager {
         }
     }
 
-    async loadConnections() {
+    // Get parent goals for selection
+    async getParentGoals() {
+        if (this.type === 'year') return [];
+        
+        const parentType = this.type === 'month' ? 'year' : 'month';
         try {
-            const response = await fetch(`/api/goals/connections/${this.type}`);
-            if (!response.ok) throw new Error('Failed to load connections');
+            const response = await fetch(`/api/goals/${parentType}`);
+            if (!response.ok) throw new Error('Failed to load parent goals');
             return await response.json();
         } catch (error) {
-            console.error('Error loading connections:', error);
+            console.error('Error loading parent goals:', error);
             return [];
         }
     }
-
-    async saveConnection(connection) {
-        try {
-            const response = await fetch('/api/goals/connections', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(connection)
-            });
-            
-            if (!response.ok) throw new Error('Failed to save connection');
-            return await response.json();
-        } catch (error) {
-            console.error('Error saving connection:', error);
-            throw error;
-        }
-    }
 }
 
-// Helper function for jsPlumb initialization
-function initJsPlumb(instance) {
-    instance.setContainer(document.querySelector('.goals-container'));
-    
-    instance.importDefaults({
-        Connector: ['Bezier', { curviness: 50 }],
-        Anchors: ['Right', 'Left'],
-        Endpoint: ['Dot', { radius: 5 }],
-        PaintStyle: { stroke: '#5c96bc', strokeWidth: 2 },
-        HoverPaintStyle: { stroke: '#1e8151', strokeWidth: 3 }
-    });
-    
-    return instance;
+// Helper function to get manager for type
+function getManagerForType(type) {
+    const managers = {
+        year: new GoalsManager('year'),
+        month: new GoalsManager('month'),
+        week: new GoalsManager('week')
+    };
+    return managers[type];
 }
 
-export { GoalsManager, createGoalElement, initJsPlumb, hashContent }; 
+export { GoalsManager, createGoalElement, hashContent }; 
