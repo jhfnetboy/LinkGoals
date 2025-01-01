@@ -74,7 +74,20 @@ async function ensureCsvFiles() {
 // Helper function to read CSV file
 async function readCsvFile(filePath) {
     try {
+        // Check if file exists
+        try {
+            await fs.access(filePath);
+        } catch {
+            console.log(`CSV file ${filePath} does not exist, returning empty array`);
+            return [];
+        }
+
         const content = await fs.readFile(filePath, 'utf-8');
+        if (!content.trim()) {
+            console.log(`CSV file ${filePath} is empty`);
+            return [];
+        }
+
         return new Promise((resolve) => {
             const results = [];
             const stream = require('node:stream');
@@ -83,12 +96,53 @@ async function readCsvFile(filePath) {
             
             bufferStream
                 .pipe(csv())
-                .on('data', (data) => results.push(data))
-                .on('end', () => resolve(results));
+                .on('data', (data) => {
+                    // Only include valid data with all required fields
+                    if (data.ID && data.ID.trim() && data.CONTENT && data.CONTENT.trim()) {
+                        results.push({
+                            ID: data.ID.trim(),
+                            CONTENT: data.CONTENT.trim(),
+                            BACKGROUND_COLOR: data.BACKGROUND_COLOR || '#f9f9f9'
+                        });
+                    }
+                })
+                .on('end', () => {
+                    console.log(`Read ${results.length} valid records from ${filePath}`);
+                    resolve(results);
+                });
         });
     } catch (error) {
         console.error(`Error reading CSV file ${filePath}:`, error);
         return [];
+    }
+}
+
+// Helper function to write to CSV file
+async function writeGoalsToCsv(type, goals) {
+    try {
+        // Ensure all goals have required fields with default values
+        const cleanedGoals = goals.map(goal => ({
+            ID: goal?.ID?.trim() || '',
+            CONTENT: goal?.CONTENT?.trim() || '',
+            BACKGROUND_COLOR: goal?.BACKGROUND_COLOR || '#f9f9f9'
+        })).filter(goal => goal.ID && goal.CONTENT); // Filter out any invalid goals
+
+        // Create a new writer for each write operation
+        const writer = createCsvWriter({
+            path: csvFiles[type],
+            header: [
+                { id: 'ID', title: 'ID' },
+                { id: 'CONTENT', title: 'CONTENT' },
+                { id: 'BACKGROUND_COLOR', title: 'BACKGROUND_COLOR' }
+            ]
+        });
+        
+        // Write all goals at once
+        await writer.writeRecords(cleanedGoals);
+        console.log(`Successfully wrote ${cleanedGoals.length} goals to ${csvFiles[type]}`);
+    } catch (error) {
+        console.error(`Error writing to CSV file ${csvFiles[type]}:`, error);
+        throw error;
     }
 }
 
@@ -162,31 +216,65 @@ router.post('/:type', async (req, res) => {
             return res.status(400).json({ error: 'Invalid goal type' });
         }
 
-        const goals = await readCsvFile(csvFiles[type]);
-        const goal = req.body;
+        // Read existing goals
+        const existingGoals = await readCsvFile(csvFiles[type]);
+        const newGoal = req.body;
 
-        // Check if goal already exists by ID (content hash)
-        const existingGoal = goals.find(g => g.ID === goal.id);
-        if (existingGoal) {
-            // Update existing goal
-            existingGoal.CONTENT = goal.content;
-            existingGoal.BACKGROUND_COLOR = goal.backgroundColor;
-            await csvWriters[type].writeRecords(goals);
-        } else {
-            // Add new goal
-            await csvWriters[type].writeRecords([...goals, {
-                ID: goal.id,
-                CONTENT: goal.content,
-                BACKGROUND_COLOR: goal.backgroundColor
-            }]);
+        // Validate required fields
+        if (!newGoal.id || !newGoal.content) {
+            return res.status(400).json({ error: 'Missing required fields' });
         }
+
+        // Strictly check for existing ID
+        const hasExistingId = existingGoals.some(goal => goal.ID === newGoal.id);
+        if (hasExistingId) {
+            console.log(`Goal with ID ${newGoal.id} already exists, skipping save`);
+            const existingGoal = existingGoals.find(g => g.ID === newGoal.id);
+            return res.json({
+                id: existingGoal.ID,
+                content: existingGoal.CONTENT,
+                backgroundColor: existingGoal.BACKGROUND_COLOR
+            });
+        }
+
+        // Check for duplicate content
+        const duplicateContent = existingGoals.some(goal => 
+            goal.CONTENT.trim().toLowerCase() === newGoal.content.trim().toLowerCase()
+        );
+        if (duplicateContent) {
+            console.log(`Goal with content "${newGoal.content}" already exists, skipping save`);
+            const existingGoal = existingGoals.find(g => 
+                g.CONTENT.trim().toLowerCase() === newGoal.content.trim().toLowerCase()
+            );
+            return res.json({
+                id: existingGoal.ID,
+                content: existingGoal.CONTENT,
+                backgroundColor: existingGoal.BACKGROUND_COLOR
+            });
+        }
+
+        // If no duplicates found, create new goal
+        console.log(`Adding new ${type} goal with ID:`, newGoal.id);
+        const goalToSave = {
+            ID: newGoal.id,
+            CONTENT: newGoal.content.trim(),
+            BACKGROUND_COLOR: newGoal.backgroundColor || '#f9f9f9'
+        };
+
+        // Add to existing goals array
+        existingGoals.push(goalToSave);
         
-        res.json({
-            id: goal.id,
-            content: goal.content,
-            backgroundColor: goal.backgroundColor
+        // Write updated goals back to file
+        await writeGoalsToCsv(type, existingGoals);
+        
+        // Return the newly saved goal
+        return res.json({
+            id: goalToSave.ID,
+            content: goalToSave.CONTENT,
+            backgroundColor: goalToSave.BACKGROUND_COLOR
         });
     } catch (error) {
+        console.error(`Error saving ${req.params.type} goal:`, error);
         res.status(500).json({ error: 'Failed to save goal' });
     }
 });
@@ -199,16 +287,18 @@ router.put('/:type/:id', async (req, res) => {
         }
 
         const goals = await readCsvFile(csvFiles[type]);
-        const existingGoal = goals.find(g => g.ID === id);
+        const existingIndex = goals.findIndex(g => g.ID === id);
         
-        if (!existingGoal) {
+        if (existingIndex === -1) {
             // If goal doesn't exist, create it
             const newGoal = {
                 ID: id,
                 CONTENT: req.body.content,
-                BACKGROUND_COLOR: req.body.backgroundColor
+                BACKGROUND_COLOR: req.body.backgroundColor || '#f9f9f9'
             };
-            await csvWriters[type].writeRecords([...goals, newGoal]);
+            goals.push(newGoal);
+            await writeGoalsToCsv(type, goals);
+            
             return res.json({
                 id: newGoal.ID,
                 content: newGoal.CONTENT,
@@ -216,17 +306,23 @@ router.put('/:type/:id', async (req, res) => {
             });
         }
 
-        // Update existing goal
-        existingGoal.CONTENT = req.body.content;
-        existingGoal.BACKGROUND_COLOR = req.body.backgroundColor;
+        // Update existing goal in the array
+        goals[existingIndex] = {
+            ID: id,
+            CONTENT: req.body.content,
+            BACKGROUND_COLOR: req.body.backgroundColor || '#f9f9f9'
+        };
         
-        await csvWriters[type].writeRecords(goals);
+        // Write all goals back to file
+        await writeGoalsToCsv(type, goals);
+        
         res.json({
-            id: existingGoal.ID,
-            content: existingGoal.CONTENT,
-            backgroundColor: existingGoal.BACKGROUND_COLOR
+            id: goals[existingIndex].ID,
+            content: goals[existingIndex].CONTENT,
+            backgroundColor: goals[existingIndex].BACKGROUND_COLOR
         });
     } catch (error) {
+        console.error(`Error updating ${req.params.type} goal:`, error);
         res.status(500).json({ error: 'Failed to update goal' });
     }
 });
@@ -241,9 +337,12 @@ router.delete('/:type/:id', async (req, res) => {
         const goals = await readCsvFile(csvFiles[type]);
         const filteredGoals = goals.filter(g => g.ID !== id);
         
-        await csvWriters[type].writeRecords(filteredGoals);
+        // Write filtered goals back to file
+        await writeGoalsToCsv(type, filteredGoals);
+        
         res.json({ message: 'Goal deleted successfully' });
     } catch (error) {
+        console.error(`Error deleting ${req.params.type} goal:`, error);
         res.status(500).json({ error: 'Failed to delete goal' });
     }
 });

@@ -1,8 +1,14 @@
-// Add hash function
+// Hash function for consistent ID generation
 function hashContent(content) {
+    // Normalize content by trimming and converting to lowercase
+    const normalizedContent = content.trim().toLowerCase();
+    // Add timestamp to ensure uniqueness
+    const timestamp = Date.now();
+    const contentWithTimestamp = `${normalizedContent}_${timestamp}`;
+    
     let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-        const char = content.charCodeAt(i);
+    for (let i = 0; i < contentWithTimestamp.length; i++) {
+        const char = contentWithTimestamp.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash; // Convert to 32-bit integer
     }
@@ -12,7 +18,8 @@ function hashContent(content) {
 function createGoalElement(goal) {
     const div = document.createElement('div');
     div.className = 'goal-item';
-    div.id = goal.id || hashContent(goal.content);
+    // Always use the provided ID for existing goals
+    div.id = goal.id;
     div.style.backgroundColor = goal.backgroundColor || '#f9f9f9';
     
     div.innerHTML = `
@@ -31,13 +38,22 @@ function createGoalElement(goal) {
 class GoalsManager {
     constructor(type) {
         this.type = type;
+        this.goals = new Map(); // Cache for goals
     }
 
     async loadGoals() {
         try {
             const response = await fetch(`/api/goals/${this.type}`);
             if (!response.ok) throw new Error('Failed to load goals');
-            return await response.json();
+            const goals = await response.json();
+            
+            // Clear and update cache
+            this.goals.clear();
+            for (const goal of goals) {
+                this.goals.set(goal.id, goal);
+            }
+            
+            return Array.from(this.goals.values());
         } catch (error) {
             console.error('Error loading goals:', error);
             return [];
@@ -46,19 +62,43 @@ class GoalsManager {
 
     async saveGoal(goal) {
         try {
-            // Use content hash as ID if not provided
-            if (!goal.id) {
-                goal.id = hashContent(goal.content);
+            // For new goals, generate a unique hash ID
+            const id = goal.id || hashContent(goal.content);
+            console.log('Saving goal with hash:', { id, content: goal.content });
+
+            // Check if goal with this ID already exists in cache
+            if (this.goals.has(id)) {
+                console.log('Goal with this ID already exists:', id);
+                return this.goals.get(id);
             }
+
+            // Check if goal with same content exists
+            for (const [existingId, existingGoal] of this.goals) {
+                if (existingGoal.content.trim().toLowerCase() === goal.content.trim().toLowerCase()) {
+                    console.log('Goal with same content already exists:', existingId);
+                    return existingGoal;
+                }
+            }
+
+            const goalToSave = {
+                ...goal,
+                id,
+                backgroundColor: goal.backgroundColor || '#f9f9f9'
+            };
 
             const response = await fetch(`/api/goals/${this.type}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(goal)
+                body: JSON.stringify(goalToSave)
             });
             
             if (!response.ok) throw new Error('Failed to save goal');
-            return await response.json();
+            const savedGoal = await response.json();
+            
+            // Update cache
+            this.goals.set(savedGoal.id, savedGoal);
+            
+            return savedGoal;
         } catch (error) {
             console.error('Error saving goal:', error);
             throw error;
@@ -67,6 +107,8 @@ class GoalsManager {
 
     async updateGoal(id, goal) {
         try {
+            console.log('Updating goal:', { id, content: goal.content });
+
             const response = await fetch(`/api/goals/${this.type}/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -74,7 +116,12 @@ class GoalsManager {
             });
             
             if (!response.ok) throw new Error('Failed to update goal');
-            return await response.json();
+            const updatedGoal = await response.json();
+            
+            // Update cache
+            this.goals.set(updatedGoal.id, updatedGoal);
+            
+            return updatedGoal;
         } catch (error) {
             console.error('Error updating goal:', error);
             throw error;
@@ -88,6 +135,10 @@ class GoalsManager {
             });
             
             if (!response.ok) throw new Error('Failed to delete goal');
+            
+            // Remove from cache
+            this.goals.delete(id);
+            
             return await response.json();
         } catch (error) {
             console.error('Error deleting goal:', error);
