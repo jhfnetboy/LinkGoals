@@ -1,5 +1,5 @@
 # jhf add
-data/*.csv
+data/*.db
 # Logs
 logs
 *.log
