@@ -237,4 +237,6 @@ document.addEventListener('DOMContentLoaded', initializePage);
 window.addGoal = addGoal;
 window.updateGoalColor = updateGoalColor;
 window.deleteGoal = deleteGoal;
-window.selectParent = selectParent; 
+window.selectParent = selectParent;
+window.loadAllGoals = loadAllGoals;
+window.updateParentSelections = updateParentSelections; 

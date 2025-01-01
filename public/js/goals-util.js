@@ -35,6 +35,8 @@ function createGoalElement(goal, type) {
                     ...goal,
                     content: newContent 
                 });
+                await loadAllGoals();
+                await updateParentSelections();
             } catch (error) {
                 console.error('Error updating goal content:', error);
                 contentSpan.textContent = goal.content; // Revert on error
@@ -49,8 +51,11 @@ function createGoalElement(goal, type) {
         parentDiv.className = 'parent-selection';
         const select = document.createElement('select');
         select.disabled = !!goal.parentId;
-        select.innerHTML = `<option value="">Select ${type === 'month' ? 'year' : 'month'} goal</option>`;
-        select.addEventListener('change', (e) => selectParent(goal.id, e.target.value, type));
+        select.addEventListener('change', async (e) => {
+            await selectParent(goal.id, e.target.value, type);
+            await loadAllGoals();
+            await updateParentSelections();
+        });
         parentDiv.appendChild(select);
         div.appendChild(parentDiv);
     }
@@ -63,13 +68,21 @@ function createGoalElement(goal, type) {
     const colorInput = document.createElement('input');
     colorInput.type = 'color';
     colorInput.value = goal.backgroundColor || '#f9f9f9';
-    colorInput.addEventListener('change', (e) => updateGoalColor(goal.id, e.target.value));
+    colorInput.addEventListener('change', async (e) => {
+        await updateGoalColor(goal.id, e.target.value);
+        await loadAllGoals();
+        await updateParentSelections();
+    });
     actionsDiv.appendChild(colorInput);
     
     // Delete button
     const deleteButton = document.createElement('button');
     deleteButton.textContent = '×';
-    deleteButton.onclick = () => deleteGoal(goal.id);
+    deleteButton.onclick = async () => {
+        await deleteGoal(goal.id);
+        await loadAllGoals();
+        await updateParentSelections();
+    };
     actionsDiv.appendChild(deleteButton);
     
     div.appendChild(actionsDiv);
