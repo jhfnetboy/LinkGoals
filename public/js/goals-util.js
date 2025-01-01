@@ -139,12 +139,15 @@ class GoalsManager {
 
     async updateGoal(id, goal) {
         try {
-            console.log('Updating goal:', { id, content: goal.content });
+            console.log('Updating goal:', { id, goal });
 
             const response = await fetch(`/api/goals/${this.type}/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(goal)
+                body: JSON.stringify({
+                    ...goal,
+                    id // Make sure to include the id
+                })
             });
             
             if (!response.ok) {
