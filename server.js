@@ -8,6 +8,9 @@ const port = 3086;
 app.use(express.json());
 app.use(express.static('public'));
 
+// Serve node_modules directory for client-side imports
+app.use('/node_modules', express.static('node_modules'));
+
 // Links API routes
 app.get('/api/load', async (req, res) => {
     try {

@@ -9,14 +9,21 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #ff4d4d 0%, #ff1a1a 100%);
             min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding-bottom: 60px;
         }
 
         .nav-buttons {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            justify-content: center;
+            max-width: 800px;
+            margin: 0 auto 20px;
         }
 
         .nav-button {
@@ -45,6 +52,12 @@
             gap: 10px;
             max-width: 800px;
             margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 2;
         }
 
         .link-item {
@@ -107,9 +120,46 @@
         .add-link-form button:hover {
             background-color: #45a049;
         }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px 0;
+            text-align: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        #fireworks-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            z-index: 1;
+        }
+
+        /* Snow effect styles */
+        .snowflake {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            filter: drop-shadow(0 0 10px white);
+            pointer-events: none;
+            z-index: 0;
+        }
     </style>
 </head>
 <body>
+    <div id="snow" data-count="150"></div>
+    <div id="fireworks-container"></div>
+    
     <div class="nav-buttons">
         <button class="nav-button active" onclick="window.location.href='index.html'">Links</button>
         <button class="nav-button" onclick="window.location.href='goals.html'">Goals</button>
@@ -119,8 +169,6 @@
         <div class="add-link-form">
             <input type="text" id="linkInput" placeholder="Format: name, url, tag" onkeypress="if(event.key === 'Enter') addLink()">
             <button onclick="addLink()">Add Link</button>
-            <button onclick="saveLinks()">Save to File</button>
-            <button onclick="loadLinks()">Load from File</button>
         </div>
         <table id="linksTable">
             <thead>
@@ -135,38 +183,122 @@
         </table>
     </div>
 
+    <div class="footer">
+        jLab Contribution 2024
+    </div>
+
+    <!-- Add Snow.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/pure-snow.js@2.1.0/pure-snow.js"></script>
+
+    <!-- Add Fireworks.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/fireworks-js@2.x/dist/index.umd.js"></script>
+
     <script>
-        // Load links when page loads
+        // Initialize fireworks and snow when page loads
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Page loaded, loading links...');
             loadLinks();
+            initFireworks();
+            
+            // Initialize snow effect
+            createSnow();
+            showSnow(true);
         });
 
-        function updateTable(links) {
-            const tbody = document.querySelector('#linksTable tbody');
-            tbody.innerHTML = '';
-            
-            links.forEach((link, index) => {
-                const tr = document.createElement('tr');
-                // Truncate URL to 20 characters and add ellipsis
-                const truncatedUrl = link.url.length > 20 
-                    ? link.url.substring(0, 20) + '...' 
-                    : link.url;
-                    
-                tr.innerHTML = `
-                    <td>${link.name}</td>
-                    <td><a href="${link.url}" title="${link.url}" target="_blank">${truncatedUrl}</a></td>
-                    <td>${link.notes || ''}</td>
-                    <td class="link-actions">
-                        <button onclick="editLink(${index})">Edit</button>
-                        <button onclick="deleteLink(${index})" class="delete-button">Delete</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+        function initFireworks() {
+            const container = document.getElementById('fireworks-container');
+            const fireworks = new Fireworks.default(container, {
+                autoresize: true,
+                opacity: 0.8,
+                acceleration: 1.05,
+                friction: 0.95,
+                gravity: 1.5,
+                particles: 150,
+                traceLength: 3,
+                traceSpeed: 10,
+                explosion: 10,
+                intensity: 80,
+                flickering: 50,
+                lineStyle: 'round',
+                hue: {
+                    min: 0,
+                    max: 360
+                },
+                delay: {
+                    min: 15,
+                    max: 30
+                },
+                rocketsPoint: {
+                    min: 30,
+                    max: 70
+                },
+                lineWidth: {
+                    explosion: {
+                        min: 1,
+                        max: 5
+                    },
+                    trace: {
+                        min: 1,
+                        max: 3
+                    }
+                },
+                brightness: {
+                    min: 80,
+                    max: 100
+                },
+                decay: {
+                    min: 0.01,
+                    max: 0.02
+                },
+                mouse: {
+                    click: true,
+                    move: false,
+                    max: 3
+                },
+                sound: {
+                    enabled: true,
+                    files: [
+                        'https://fireworks.js.org/sounds/explosion0.mp3',
+                        'https://fireworks.js.org/sounds/explosion1.mp3',
+                        'https://fireworks.js.org/sounds/explosion2.mp3'
+                    ],
+                    volume: {
+                        min: 30,
+                        max: 60
+                    }
+                }
             });
+
+            // Start the fireworks
+            fireworks.start();
+
+            // Add mouse click event for manual launch
+            container.addEventListener('click', () => {
+                fireworks.launch(5);
+            });
+
+            // Test sound on page load
+            setTimeout(() => {
+                fireworks.launch(3);
+            }, 1000);
         }
 
-        async function addLink() {
+        async function loadLinks() {
+            try {
+                const response = await fetch('/api/load');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const links = await response.json();
+                console.log('Loaded links:', links);
+                updateTable(links);
+            } catch (error) {
+                console.error('Error loading links:', error);
+                alert('Failed to load links. Please try again.');
+            }
+        }
+
+        window.addLink = async function() {
             try {
                 const input = document.getElementById('linkInput');
                 const value = input.value.trim();
@@ -205,7 +337,7 @@
             }
         }
 
-        async function editLink(index) {
+        window.editLink = async function(index) {
             const name = prompt('Enter new name:');
             const url = prompt('Enter new URL:');
             const notes = prompt('Enter notes (optional):');
@@ -228,7 +360,7 @@
             }
         }
 
-        async function deleteLink(index) {
+        window.deleteLink = async function(index) {
             if (!confirm('Are you sure you want to delete this link?')) return;
 
             try {
@@ -245,42 +377,28 @@
             }
         }
 
-        async function saveLinks() {
-            try {
-                const response = await fetch('/api/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.error || 'Failed to save links');
-                }
-
-                if (result.links) {
-                    updateTable(result.links);
-                    console.log('Links saved successfully');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to save links: ' + error.message);
-            }
-        }
-
-        async function loadLinks() {
-            try {
-                const response = await fetch('/api/load');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const links = await response.json();
-                console.log('Loaded links:', links);
-                updateTable(links);
-            } catch (error) {
-                console.error('Error loading links:', error);
-                alert('Failed to load links. Please try again.');
-            }
+        function updateTable(links) {
+            const tbody = document.querySelector('#linksTable tbody');
+            tbody.innerHTML = '';
+            
+            links.forEach((link, index) => {
+                const tr = document.createElement('tr');
+                // Truncate URL to 20 characters and add ellipsis
+                const truncatedUrl = link.url.length > 20 
+                    ? link.url.substring(0, 20) + '...' 
+                    : link.url;
+                    
+                tr.innerHTML = `
+                    <td>${link.name}</td>
+                    <td><a href="${link.url}" title="${link.url}" target="_blank">${truncatedUrl}</a></td>
+                    <td>${link.notes || ''}</td>
+                    <td class="link-actions">
+                        <button onclick="editLink(${index})">Edit</button>
+                        <button onclick="deleteLink(${index})" class="delete-button">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
     </script>
 </body>

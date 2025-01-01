@@ -15,6 +15,8 @@
     "csv-parser": "^3.0.0",
     "csv-writer": "^1.6.0",
     "express": "^4.18.2",
+    "fireworks-js": "^2.10.8",
+    "pure-snow.js": "^2.1.0",
     "sqlite3": "^5.1.7"
   }
 }
