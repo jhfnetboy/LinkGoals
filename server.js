@@ -8,6 +8,11 @@ const port = 3086;
 app.use(express.json());
 app.use(express.static('public'));
 
+// Serve links.html as the root page
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'links.html'));
+});
+
 // Serve node_modules directory for client-side imports
 app.use('/node_modules', express.static('node_modules'));
 
