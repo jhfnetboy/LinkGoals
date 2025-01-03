@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation</title>
+    <style>
+        .nav-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            z-index: 10;
+            position: relative;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: #f0f0f0;
+            color: #333;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .nav-button:hover {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .nav-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .gradient-picker {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 100;
+            width: 300px;
+        }
+
+        .gradient-picker.show {
+            display: block;
+        }
+
+        .gradient-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .gradient-inputs input[type="color"] {
+            width: 50px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            border-radius: 3px;
+        }
+
+        .settings-button {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 11;
+        }
+
+        .music-control {
+            position: absolute;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 11;
+        }
+
+        .music-picker {
+            position: absolute;
+            top: 100%;
+            right: 60px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 100;
+            width: 200px;
+        }
+
+        .music-picker.show {
+            display: block;
+        }
+
+        .music-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .music-item {
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .music-item:hover {
+            background: #f0f0f0;
+        }
+
+        .music-item.active {
+            background: #e0e0e0;
+            font-weight: bold;
+        }
+
+        .music-controller {
+            position: absolute;
+            right: 100px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 5px 10px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(5px);
+            z-index: 11;
+        }
+
+        .music-controller.show {
+            display: flex;
+        }
+
+        .music-controller button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .music-controller button:hover {
+            color: #e0e0e0;
+        }
+
+        .music-controller .music-name {
+            color: white;
+            font-size: 14px;
+            margin: 0 5px;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .picker-title {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+        }
+
+        .close-button:hover {
+            color: #333;
+        }
+
+        /* Alarm styles */
+        .alarm-button {
+            position: absolute;
+            right: 100px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 11;
+        }
+
+        .alarm-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .alarm-modal.show {
+            display: flex;
+        }
+
+        .alarm-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+        }
+
+        .alarm-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .alarm-form input,
+        .alarm-form textarea {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .alarm-form button {
+            padding: 8px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .alarm-form button:hover {
+            background: #45a049;
+        }
+
+        .alarm-notification {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1001;
+            max-width: 300px;
+        }
+
+        .alarm-notification.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-container">
+        <div class="nav-buttons">
+            <a href="#" onclick="loadPage('links')" class="nav-button" id="links-btn">Links</a>
+            <a href="#" onclick="loadPage('goals')" class="nav-button" id="goals-btn">Goals</a>
+            <a href="#" onclick="loadPage('read')" class="nav-button" id="read-btn">Read</a>
+        </div>
+        <div class="music-controller" id="musicController">
+            <button onclick="playPrevious()">⬅️</button>
+            <span class="music-name" id="currentMusicName"></span>
+            <button onclick="playNext()">➡️</button>
+        </div>
+        <button class="music-control" onclick="toggleMusic()">🔈</button>
+        <div class="music-picker" id="musicPicker">
+            <div class="picker-header">
+                <span class="picker-title">Background Music</span>
+                <button class="close-button" onclick="toggleMusicPicker()">×</button>
+            </div>
+            <div class="music-list" id="musicList"></div>
+        </div>
+        <button class="settings-button" onclick="toggleGradientPicker()">⚙️</button>
+        <div class="gradient-picker" id="gradientPicker">
+            <div class="picker-header">
+                <span class="picker-title">Background Color</span>
+                <button class="close-button" onclick="toggleGradientPicker()">×</button>
+            </div>
+            <div class="gradient-inputs">
+                <input type="color" id="gradientStart" value="#4CAF50" onchange="updateGradient()">
+                <input type="color" id="gradientEnd" value="#45a049" onchange="updateGradient()">
+            </div>
+        </div>
+        <button class="alarm-button" onclick="toggleAlarmModal()">⏰</button>
+        <div class="alarm-modal" id="alarmModal">
+            <div class="alarm-content">
+                <div class="picker-header">
+                    <span class="picker-title">Set Alarm</span>
+                    <button class="close-button" onclick="toggleAlarmModal()">×</button>
+                </div>
+                <form class="alarm-form" onsubmit="saveAlarm(event)">
+                    <input type="datetime-local" id="alarmDateTime" required>
+                    <textarea id="alarmNote" placeholder="Alarm note..." required></textarea>
+                    <button type="submit">Set Alarm</button>
+                </form>
+            </div>
+        </div>
+        <div class="alarm-notification" id="alarmNotification"></div>
+    </div>
+
+    <div id="content"></div>
+
+    <div class="footer">
+        jLab Contribution 2024
+    </div>
+
+    <script>
+        let audio = null;
+        let isPlaying = false;
+        let currentMusic = null;
+        let musicFiles = [];
+        let currentMusicIndex = 0;
+        let alarms = [];
+        let alarmCheckInterval;
+
+        async function loadMusicList() {
+            try {
+                const response = await fetch('/api/music');
+                if (!response.ok) throw new Error('Failed to load music list');
+                musicFiles = await response.json();
+                displayMusicList(musicFiles);
+                if (musicFiles.length > 0) {
+                    currentMusic = musicFiles[0];
+                    currentMusicIndex = 0;
+                    initAudio(currentMusic);
+                }
+            } catch (error) {
+                console.error('Error loading music list:', error);
+            }
+        }
+
+        function displayMusicList(musicFiles) {
+            const list = document.getElementById('musicList');
+            list.innerHTML = '';
+            
+            musicFiles.forEach(file => {
+                const div = document.createElement('div');
+                div.className = 'music-item' + (file === currentMusic ? ' active' : '');
+                div.textContent = file.replace(/\.(mp3|wav)$/, '');
+                div.onclick = () => selectMusic(file);
+                list.appendChild(div);
+            });
+        }
+
+        function initAudio(file) {
+            if (audio) {
+                audio.pause();
+                audio = null;
+            }
+            audio = new Audio(`/music/${file}`);
+            audio.loop = false;
+            audio.addEventListener('ended', playNext);
+        }
+
+        function selectMusic(file) {
+            currentMusic = file;
+            initAudio(file);
+            if (isPlaying) {
+                audio.play();
+            }
+            displayMusicList([...document.querySelectorAll('.music-item')].map(el => 
+                el.textContent + '.mp3'
+            ));
+            toggleMusicPicker();
+        }
+
+        function toggleMusic() {
+            if (!audio && currentMusic) {
+                initAudio(currentMusic);
+            }
+            
+            if (audio) {
+                if (isPlaying) {
+                    audio.pause();
+                    document.querySelector('.music-control').textContent = '🔈';
+                } else {
+                    audio.play();
+                    document.querySelector('.music-control').textContent = '🔊';
+                }
+                isPlaying = !isPlaying;
+                updateMusicController();
+            }
+        }
+
+        function toggleMusicPicker() {
+            const picker = document.getElementById('musicPicker');
+            picker.classList.toggle('show');
+        }
+
+        function updateMusicController() {
+            const controller = document.getElementById('musicController');
+            const musicName = document.getElementById('currentMusicName');
+            
+            if (isPlaying) {
+                controller.classList.add('show');
+                if (currentMusic) {
+                    musicName.textContent = currentMusic.replace(/\.(mp3|wav)$/, '');
+                }
+            } else {
+                controller.classList.remove('show');
+            }
+        }
+
+        function playPrevious() {
+            if (musicFiles.length === 0) return;
+            
+            currentMusicIndex = (currentMusicIndex - 1 + musicFiles.length) % musicFiles.length;
+            currentMusic = musicFiles[currentMusicIndex];
+            initAudio(currentMusic);
+            if (isPlaying) {
+                audio.play();
+            }
+            updateMusicController();
+        }
+
+        function playNext() {
+            if (musicFiles.length === 0) return;
+            
+            currentMusicIndex = (currentMusicIndex + 1) % musicFiles.length;
+            currentMusic = musicFiles[currentMusicIndex];
+            initAudio(currentMusic);
+            if (isPlaying) {
+                audio.play();
+            }
+            updateMusicController();
+        }
+
+        function toggleGradientPicker() {
+            const picker = document.getElementById('gradientPicker');
+            picker.classList.toggle('show');
+        }
+
+        function updateGradient() {
+            const start = document.getElementById('gradientStart').value;
+            const end = document.getElementById('gradientEnd').value;
+            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
+            
+            localStorage.setItem('gradientStart', start);
+            localStorage.setItem('gradientEnd', end);
+        }
+
+        async function loadPage(page) {
+            try {
+                // Update active button
+                document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`${page}-btn`).classList.add('active');
+
+                // Load page content
+                const response = await fetch(`/api/pages/${page}`);
+                const content = await response.text();
+                
+                // Update the content
+                document.getElementById('content').innerHTML = content;
+
+                // Update URL without page reload
+                history.pushState({}, '', `/${page}`);
+
+                // Initialize page-specific functionality
+                if (page === 'links') {
+                    loadLinks();
+                } else if (page === 'goals') {
+                    initializePage();
+                } else if (page === 'read') {
+                    loadCards();
+                }
+            } catch (error) {
+                console.error('Error loading page:', error);
+            }
+        }
+
+        async function loadAlarms() {
+            try {
+                const response = await fetch('/api/alarms');
+                if (!response.ok) throw new Error('Failed to load alarms');
+                alarms = await response.json();
+                startAlarmCheck();
+            } catch (error) {
+                console.error('Error loading alarms:', error);
+            }
+        }
+
+        function toggleAlarmModal() {
+            const modal = document.getElementById('alarmModal');
+            modal.classList.toggle('show');
+        }
+
+        async function saveAlarm(event) {
+            event.preventDefault();
+            const datetime = document.getElementById('alarmDateTime').value;
+            const note = document.getElementById('alarmNote').value;
+
+            try {
+                const response = await fetch('/api/alarms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ datetime, note })
+                });
+
+                if (!response.ok) throw new Error('Failed to save alarm');
+                alarms = await response.json();
+                toggleAlarmModal();
+                document.getElementById('alarmDateTime').value = '';
+                document.getElementById('alarmNote').value = '';
+            } catch (error) {
+                console.error('Error saving alarm:', error);
+            }
+        }
+
+        function startAlarmCheck() {
+            if (alarmCheckInterval) {
+                clearInterval(alarmCheckInterval);
+            }
+
+            alarmCheckInterval = setInterval(checkAlarms, 1000);
+        }
+
+        function checkAlarms() {
+            const now = new Date();
+            alarms.forEach(async alarm => {
+                const alarmTime = new Date(alarm.datetime);
+                if (now >= alarmTime && alarm.is_active) {
+                    showNotification(alarm.note);
+                    speakAlarm(alarm.note);
+                    await fetch(`/api/alarms/${alarm.id}`, { method: 'DELETE' });
+                }
+            });
+        }
+
+        function showNotification(note) {
+            const notification = document.getElementById('alarmNotification');
+            notification.textContent = note;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 10000);
+        }
+
+        function speakAlarm(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            speechSynthesis.speak(utterance);
+        }
+
+        // Initialize navigation
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadMusicList();
+            loadAlarms();
+            
+            // Load saved gradient colors
+            const start = localStorage.getItem('gradientStart') || '#4CAF50';
+            const end = localStorage.getItem('gradientEnd') || '#45a049';
+            
+            document.getElementById('gradientStart').value = start;
+            document.getElementById('gradientEnd').value = end;
+            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
+
+            // Set active button based on current URL and load initial content
+            const currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'links';
+            document.getElementById(`${currentPage}-btn`).classList.add('active');
+            await loadPage(currentPage);
+        });
+    </script>
+</body>
+</html> 

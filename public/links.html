@@ -748,7 +748,20 @@
                 
                 // Create link element with name and tag
                 const linkText = `${index + 1}. ${link.name}${link.notes ? ', ' + link.notes : ''}`;
-                linkItem.innerHTML = `<a href="${link.url}" target="_blank">${linkText}</a>`;
+                const linkContent = document.createElement('div');
+                linkContent.className = 'link-content';
+                linkContent.innerHTML = `<a href="${link.url}" target="_blank">${linkText}</a>`;
+                
+                // Create actions div with edit and delete buttons
+                const actions = document.createElement('div');
+                actions.className = 'link-actions';
+                actions.innerHTML = `
+                    <button onclick="editLink(${index})">✏️</button>
+                    <button class="delete-button" onclick="deleteLink(${index})">×</button>
+                `;
+                
+                linkItem.appendChild(linkContent);
+                linkItem.appendChild(actions);
                 
                 // Distribute links across columns
                 if (index % 3 === 0) list1.appendChild(linkItem);
