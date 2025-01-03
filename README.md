@@ -1,4 +1,5 @@
 
+
 # 介绍
 自己用的小工具，clone 到本地，运行在本地，数据存储在本地文件夹
 鼠标点击放烟火，哈哈，新增特效
@@ -7,6 +8,25 @@
 npm install 
 运行
 npm start 
+```
+
+## Updated
+1. add alarm clock
+2. add words rain: need you add a env file, and add a api key from https://rapidapi.com/sheharyar566/
+```
+你需要按以下步骤在 RapidAPI 申请 API key：
+访问 RapidAPI 官网：https://rapidapi.com/
+点击右上角的 "Sign Up" 注册账号（可以用 GitHub 账号直接登录）
+登录后，搜索 "WordsAPI"，或直接访问：
+https://rapidapi.com/dpventures/api/wordsapi/
+在 WordsAPI 页面：
+点击 "Subscribe to Test"
+选择 "Basic" 免费计划（每月 2,500 次请求额度）
+完成订阅
+获取 API Key：
+点击页面右侧的 "Endpoints" 标签
+在代码示例中可以看到你的 X-RapidAPI-Key
+或者点击右上角的头像 -> "API Keys"
 ```
 
 

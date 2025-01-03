@@ -1,7 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('node:path');
-const fs = require('fs').promises;
+const fs = require('node:fs').promises;
 const { goalsDb, linksDb, cardsDb } = require('./db/database');
+const axios = require('axios');
 
 const app = express();
 const port = 3086;
@@ -186,6 +188,36 @@ app.get('/api/music', async (req, res) => {
     } catch (error) {
         console.error('Error reading music directory:', error);
         res.status(500).json({ error: 'Failed to load music list' });
+    }
+});
+
+// Dictionary API endpoint
+app.get('/api/dictionary/random', async (req, res) => {
+    try {
+        // Using WordsAPI to get random word and definition
+        const options = {
+            method: 'GET',
+            url: 'https://wordsapiv1.p.rapidapi.com/words/',
+            params: { random: 'true' },
+            headers: {
+                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
+            }
+        };
+
+        const response = await axios.request(options);
+        const word = response.data;
+
+        // Extract the first definition if available
+        const definition = word.results?.[0]?.definition ?? 'No definition available';
+
+        res.json({
+            word: word.word,
+            definition: definition
+        });
+    } catch (error) {
+        console.error('Error fetching word:', error);
+        res.status(500).json({ error: 'Failed to fetch word' });
     }
 });
 

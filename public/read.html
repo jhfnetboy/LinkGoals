@@ -75,7 +75,7 @@
 
         .music-control {
             position: absolute;
-            right: 60px;
+            right: 140px;
             top: 50%;
             transform: translateY(-50%);
             background: none;
@@ -148,6 +148,40 @@
             cursor: pointer;
             font-size: 20px;
             z-index: 11;
+        }
+
+        .alarm-button {
+            position: absolute;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 11;
+        }
+
+        .add-button {
+            position: absolute;
+            right: 100px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 24px;
+            z-index: 11;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+
+        .add-button:hover {
+            transform: translateY(-50%) scale(1.1);
         }
 
         .nav-button {
@@ -250,30 +284,6 @@
             border: none;
             border-radius: 3px;
             cursor: pointer;
-        }
-
-        .add-card-button {
-            position: fixed;
-            bottom: 80px;
-            right: 30px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.3s ease;
-        }
-
-        .add-card-button:hover {
-            transform: scale(1.1);
         }
 
         .footer {
@@ -385,6 +395,53 @@
             cursor: pointer;
             font-size: 16px;
         }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .modal-content p {
+            margin: 15px 0;
+            color: #666;
+        }
+
+        .modal-content button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .modal-content button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -407,18 +464,25 @@
             </div>
             <div class="music-list" id="musicList"></div>
         </div>
+        <button class="add-button" onclick="addCard()">+</button>
+        <button class="alarm-button" onclick="toggleAlarmPicker()">⏰</button>
         <button class="settings-button" onclick="toggleGradientPicker()">⚙️</button>
         <div class="gradient-picker" id="gradientPicker">
             <div class="picker-header">
-                <span class="picker-title">Settings</span>
+                <span class="picker-title">Background Color</span>
                 <button class="close-button" onclick="toggleGradientPicker()">×</button>
             </div>
             <div class="gradient-inputs">
                 <input type="color" id="gradientStart" value="#4CAF50" onchange="updateGradient()">
                 <input type="color" id="gradientEnd" value="#45a049" onchange="updateGradient()">
             </div>
+        </div>
+        <div class="gradient-picker" id="alarmPicker" style="right: 60px; left: auto; transform: none;">
+            <div class="picker-header">
+                <span class="picker-title">Alarm Clock</span>
+                <button class="close-button" onclick="toggleAlarmPicker()">×</button>
+            </div>
             <div class="alarm-section">
-                <h3>Alarm Clock</h3>
                 <div class="alarm-input">
                     <input type="datetime-local" id="alarmTime">
                     <textarea id="alarmNote" placeholder="Alarm note (will be spoken)"></textarea>
@@ -431,10 +495,16 @@
 
     <div class="cards-container" id="cardsContainer"></div>
 
-    <button class="add-card-button" onclick="addCard()">+</button>
-
     <div class="footer">
         jLab Contribution 2024
+    </div>
+
+    <div id="alarmModal" class="modal">
+        <div class="modal-content">
+            <h2>Alarm</h2>
+            <p id="alarmMessage"></p>
+            <button id="alarmDismiss">Got it</button>
+        </div>
     </div>
 
     <script>
@@ -727,6 +797,8 @@
 
         let alarms = [];
         let speechSynth = window.speechSynthesis;
+        let dismissCount = 0;
+        let currentAlarmInterval = null;
 
         function addAlarm() {
             const timeInput = document.getElementById('alarmTime');
@@ -756,6 +828,67 @@
             noteInput.value = '';
         }
 
+        function showAlarmModal(note) {
+            const modal = document.getElementById('alarmModal');
+            const message = document.getElementById('alarmMessage');
+            const dismissBtn = document.getElementById('alarmDismiss');
+            
+            message.textContent = note;
+            modal.style.display = 'flex';
+            dismissCount = 0;
+            dismissBtn.textContent = 'Got it!';
+
+            // Start repeating speech
+            currentAlarmInterval = setInterval(() => {
+                speakAlarm(note);
+            }, 5000); // Repeat every 5 seconds
+
+            dismissBtn.onclick = () => {
+                dismissCount++;
+                if (dismissCount >= 2) {
+                    modal.style.display = 'none';
+                    dismissCount = 0;
+                    clearInterval(currentAlarmInterval);
+                    speechSynth.cancel(); // Stop any ongoing speech
+                    dismissBtn.textContent = 'Got it!';
+                } else {
+                    dismissBtn.textContent = 'Click once more to dismiss';
+                }
+            };
+        }
+
+        function setAlarmTimeout(alarm) {
+            const now = new Date();
+            const timeUntilAlarm = alarm.time - now;
+            
+            if (timeUntilAlarm > 0) {
+                setTimeout(() => {
+                    const prefixedNote = "It is time to " + alarm.note;
+                    showAlarmModal(prefixedNote);
+                    deleteAlarm(alarm.id);
+                }, timeUntilAlarm);
+            }
+        }
+
+        function speakAlarm(text) {
+            // Cancel any ongoing speech
+            speechSynth.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Check if text contains Chinese characters
+            if (/[\u4e00-\u9fa5]/.test(text)) {
+                // Set language to Chinese if Chinese characters are detected
+                utterance.lang = 'zh-CN';
+                utterance.rate = 0.9; // Slightly slower rate for Chinese
+            } else {
+                utterance.lang = 'en-US';
+                utterance.rate = 1.0;
+            }
+            
+            speechSynth.speak(utterance);
+        }
+
         function displayAlarms() {
             const list = document.getElementById('alarmList');
             list.innerHTML = '';
@@ -777,23 +910,6 @@
             displayAlarms();
         }
 
-        function setAlarmTimeout(alarm) {
-            const now = new Date();
-            const timeUntilAlarm = alarm.time - now;
-            
-            if (timeUntilAlarm > 0) {
-                setTimeout(() => {
-                    speakAlarm(alarm.note);
-                    deleteAlarm(alarm.id);
-                }, timeUntilAlarm);
-            }
-        }
-
-        function speakAlarm(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            speechSynth.speak(utterance);
-        }
-
         function saveAlarms() {
             localStorage.setItem('alarms', JSON.stringify(alarms));
         }
@@ -808,6 +924,11 @@
                 alarms.forEach(setAlarmTimeout);
                 displayAlarms();
             }
+        }
+
+        function toggleAlarmPicker() {
+            const picker = document.getElementById('alarmPicker');
+            picker.style.display = picker.style.display === 'none' || !picker.style.display ? 'block' : 'none';
         }
     </script>
 </body>
