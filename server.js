@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('node:path');
+const fs = require('fs').promises;
 const { goalsDb, linksDb, cardsDb } = require('./db/database');
 
 const app = express();
@@ -7,6 +8,7 @@ const port = 3086;
 
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/music', express.static('music'));
 
 // Serve links.html as the root page
 app.get('/', (req, res) => {
@@ -163,6 +165,27 @@ app.delete('/api/cards/:id', async (req, res) => {
     } catch (error) {
         console.error('Error deleting card:', error);
         res.status(500).json({ error: 'Failed to delete card' });
+    }
+});
+
+// Music API routes
+app.get('/api/music', async (req, res) => {
+    try {
+        const musicDir = path.join(__dirname, 'music');
+        try {
+            await fs.access(musicDir);
+        } catch {
+            await fs.mkdir(musicDir);
+        }
+        
+        const files = await fs.readdir(musicDir);
+        const musicFiles = files.filter(file => file.endsWith('.mp3') || file.endsWith('.wav'));
+        // Sort files alphabetically to ensure consistent playback order
+        musicFiles.sort();
+        res.json(musicFiles);
+    } catch (error) {
+        console.error('Error reading music directory:', error);
+        res.status(500).json({ error: 'Failed to load music list' });
     }
 });
 

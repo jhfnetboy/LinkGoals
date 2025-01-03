@@ -100,6 +100,10 @@ name::url::notes
 8. auto load `data/default.csv` on page load
 9. DONT FORGET TO MODIFY .gitignore to ignore the data directory!!!
 
+
+### Resource
+free background music: https://pixabay.com/zh/music/search/%E5%A4%A7%E8%87%AA%E7%84%B6/
+
 ## Author
 jhfnetboy@gmail.com::spider::spider
 

@@ -1,5 +1,8 @@
 # jhf add
 data/*.db
+music/*.wav
+music/*.mp3
+
 # Logs
 logs
 *.log
