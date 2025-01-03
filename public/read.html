@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading Cards</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding-bottom: 60px;
+            transition: background 0.3s ease;
+        }
+
+        .nav-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            max-width: 800px;
+            margin: 0 auto;
+            z-index: 10;
+            position: relative;
+        }
+
+        .gradient-picker {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 100;
+            width: 300px;
+        }
+
+        .gradient-picker.show {
+            display: block;
+        }
+
+        .gradient-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .gradient-inputs input[type="color"] {
+            width: 50px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            border-radius: 3px;
+        }
+
+        .settings-button {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 11;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: #f0f0f0;
+            color: #333;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .nav-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .nav-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .cards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+            justify-content: center;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: background-color 0.3s ease;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .card-index {
+            font-weight: bold;
+        }
+
+        .card-date {
+            font-style: italic;
+        }
+
+        .card-content {
+            flex-grow: 1;
+            margin-bottom: 10px;
+            resize: vertical;
+            border: none;
+            outline: none;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 150px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: transparent;
+            color: inherit;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: auto;
+        }
+
+        .color-picker {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .delete-button {
+            padding: 5px 10px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .add-card-button {
+            position: fixed;
+            bottom: 80px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+
+        .add-card-button:hover {
+            transform: scale(1.1);
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px 0;
+            text-align: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-container">
+        <div class="nav-buttons">
+            <a href="links.html" class="nav-button">Links</a>
+            <a href="goals.html" class="nav-button">Goals</a>
+            <a href="read.html" class="nav-button active">Read</a>
+        </div>
+        <button class="settings-button" onclick="toggleGradientPicker()">⚙️</button>
+        <div class="gradient-picker" id="gradientPicker">
+            <div class="gradient-inputs">
+                <input type="color" id="gradientStart" value="#4CAF50" onchange="updateGradient()">
+                <input type="color" id="gradientEnd" value="#45a049" onchange="updateGradient()">
+            </div>
+        </div>
+    </div>
+
+    <div class="cards-container" id="cardsContainer"></div>
+
+    <button class="add-card-button" onclick="addCard()">+</button>
+
+    <div class="footer">
+        jLab Contribution 2024
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCards();
+            
+            // Load saved gradient colors
+            const start = localStorage.getItem('gradientStart') || '#4CAF50';
+            const end = localStorage.getItem('gradientEnd') || '#45a049';
+            
+            document.getElementById('gradientStart').value = start;
+            document.getElementById('gradientEnd').value = end;
+            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
+        });
+
+        async function loadCards() {
+            try {
+                const response = await fetch('/api/cards');
+                if (!response.ok) throw new Error('Failed to load cards');
+                const cards = await response.json();
+                displayCards(cards);
+            } catch (error) {
+                console.error('Error loading cards:', error);
+            }
+        }
+
+        function displayCards(cards) {
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = '';
+            
+            cards.forEach(card => {
+                container.appendChild(createCardElement(card));
+            });
+        }
+
+        function createCardElement(card) {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.style.backgroundColor = card.background_color || '#ffffff';
+            div.id = card.id;
+
+            const header = document.createElement('div');
+            header.className = 'card-header';
+            
+            const index = document.createElement('span');
+            index.className = 'card-index';
+            index.textContent = `#${card.id.slice(-4)}`;
+            
+            const date = document.createElement('span');
+            date.className = 'card-date';
+            const cardDate = new Date(card.created_at);
+            date.textContent = cardDate.toLocaleString();
+            
+            header.appendChild(index);
+            header.appendChild(date);
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'card-content';
+            textarea.value = card.content;
+            textarea.addEventListener('blur', () => updateCard(card.id, textarea.value));
+
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+
+            const colorPicker = document.createElement('input');
+            colorPicker.type = 'color';
+            colorPicker.className = 'color-picker';
+            colorPicker.value = card.background_color || '#ffffff';
+            colorPicker.addEventListener('change', (e) => updateCardColor(card.id, e.target.value));
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'delete-button';
+            deleteButton.textContent = '×';
+            deleteButton.onclick = () => deleteCard(card.id);
+
+            actions.appendChild(colorPicker);
+            actions.appendChild(deleteButton);
+
+            div.appendChild(header);
+            div.appendChild(textarea);
+            div.appendChild(actions);
+
+            return div;
+        }
+
+        async function addCard() {
+            try {
+                const response = await fetch('/api/cards', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: '',
+                        backgroundColor: '#ffffff'
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to create card');
+                await loadCards();
+            } catch (error) {
+                console.error('Error creating card:', error);
+            }
+        }
+
+        async function updateCard(id, content) {
+            try {
+                const response = await fetch(`/api/cards/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+
+                if (!response.ok) throw new Error('Failed to update card');
+            } catch (error) {
+                console.error('Error updating card:', error);
+            }
+        }
+
+        async function updateCardColor(id, color) {
+            try {
+                const response = await fetch(`/api/cards/${id}/color`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ backgroundColor: color })
+                });
+
+                if (!response.ok) throw new Error('Failed to update card color');
+                document.getElementById(id).style.backgroundColor = color;
+            } catch (error) {
+                console.error('Error updating card color:', error);
+            }
+        }
+
+        async function deleteCard(id) {
+            if (!confirm('Are you sure you want to delete this card?')) return;
+
+            try {
+                const response = await fetch(`/api/cards/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to delete card');
+                await loadCards();
+            } catch (error) {
+                console.error('Error deleting card:', error);
+            }
+        }
+
+        function toggleGradientPicker() {
+            const picker = document.getElementById('gradientPicker');
+            picker.classList.toggle('show');
+        }
+
+        function updateGradient() {
+            const start = document.getElementById('gradientStart').value;
+            const end = document.getElementById('gradientEnd').value;
+            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
+            
+            // Save the gradient colors to localStorage
+            localStorage.setItem('gradientStart', start);
+            localStorage.setItem('gradientEnd', end);
+        }
+    </script>
+</body>
+</html> 

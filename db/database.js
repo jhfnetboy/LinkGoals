@@ -42,6 +42,21 @@ function initDatabase() {
                     return;
                 }
                 console.log('Links table initialized');
+            });
+
+            // Create cards table
+            db.run(`CREATE TABLE IF NOT EXISTS cards (
+                id TEXT PRIMARY KEY,
+                content TEXT,
+                background_color TEXT DEFAULT '#ffffff',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating cards table:', err);
+                    reject(err);
+                    return;
+                }
+                console.log('Cards table initialized');
                 resolve();
             });
         });
@@ -404,6 +419,94 @@ const linksDb = {
     }
 };
 
+// Helper functions for cards
+const cardsDb = {
+    // Get all cards
+    getCards: () => {
+        return new Promise((resolve, reject) => {
+            db.all('SELECT * FROM cards ORDER BY created_at DESC', (err, rows) => {
+                if (err) {
+                    console.error('Error getting cards:', err);
+                    reject(err);
+                    return;
+                }
+                resolve(rows);
+            });
+        });
+    },
+
+    // Save a new card
+    saveCard: (card) => {
+        return new Promise((resolve, reject) => {
+            const { content = '', backgroundColor = '#ffffff' } = card;
+            const id = Math.random().toString(36).substring(2, 15);
+            
+            db.run(
+                'INSERT INTO cards (id, content, background_color) VALUES (?, ?, ?)',
+                [id, content, backgroundColor],
+                (err) => {
+                    if (err) {
+                        console.error('Error saving card:', err);
+                        reject(err);
+                        return;
+                    }
+                    resolve({ id, content, backgroundColor });
+                }
+            );
+        });
+    },
+
+    // Update a card
+    updateCard: (id, content) => {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE cards SET content = ? WHERE id = ?',
+                [content, id],
+                (err) => {
+                    if (err) {
+                        console.error('Error updating card:', err);
+                        reject(err);
+                        return;
+                    }
+                    resolve({ success: true });
+                }
+            );
+        });
+    },
+
+    // Update card color
+    updateCardColor: (id, backgroundColor) => {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE cards SET background_color = ? WHERE id = ?',
+                [backgroundColor, id],
+                (err) => {
+                    if (err) {
+                        console.error('Error updating card color:', err);
+                        reject(err);
+                        return;
+                    }
+                    resolve({ success: true });
+                }
+            );
+        });
+    },
+
+    // Delete a card
+    deleteCard: (id) => {
+        return new Promise((resolve, reject) => {
+            db.run('DELETE FROM cards WHERE id = ?', [id], (err) => {
+                if (err) {
+                    console.error('Error deleting card:', err);
+                    reject(err);
+                    return;
+                }
+                resolve({ success: true });
+            });
+        });
+    }
+};
+
 // Initialize database on module load
 console.log('Initializing database...');
 initDatabase()
@@ -413,4 +516,4 @@ initDatabase()
         process.exit(1);
     });
 
-module.exports = { goalsDb, linksDb }; 
+module.exports = { goalsDb, linksDb, cardsDb }; 

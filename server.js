@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('node:path');
-const { goalsDb, linksDb } = require('./db/database');
+const { goalsDb, linksDb, cardsDb } = require('./db/database');
 
 const app = express();
 const port = 3086;
@@ -112,6 +112,57 @@ app.delete('/api/goals/:type/:id', async (req, res) => {
     } catch (error) {
         console.error('Error deleting goal:', error);
         res.status(500).json({ error: 'Failed to delete goal' });
+    }
+});
+
+// Cards API routes
+app.get('/api/cards', async (req, res) => {
+    try {
+        const cards = await cardsDb.getCards();
+        res.json(cards);
+    } catch (error) {
+        console.error('Error getting cards:', error);
+        res.status(500).json({ error: 'Failed to get cards' });
+    }
+});
+
+app.post('/api/cards', async (req, res) => {
+    try {
+        const card = await cardsDb.saveCard(req.body);
+        res.json(card);
+    } catch (error) {
+        console.error('Error saving card:', error);
+        res.status(500).json({ error: 'Failed to save card' });
+    }
+});
+
+app.put('/api/cards/:id', async (req, res) => {
+    try {
+        const result = await cardsDb.updateCard(req.params.id, req.body.content);
+        res.json(result);
+    } catch (error) {
+        console.error('Error updating card:', error);
+        res.status(500).json({ error: 'Failed to update card' });
+    }
+});
+
+app.put('/api/cards/:id/color', async (req, res) => {
+    try {
+        const result = await cardsDb.updateCardColor(req.params.id, req.body.backgroundColor);
+        res.json(result);
+    } catch (error) {
+        console.error('Error updating card color:', error);
+        res.status(500).json({ error: 'Failed to update card color' });
+    }
+});
+
+app.delete('/api/cards/:id', async (req, res) => {
+    try {
+        const result = await cardsDb.deleteCard(req.params.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Error deleting card:', error);
+        res.status(500).json({ error: 'Failed to delete card' });
     }
 });
 

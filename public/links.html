@@ -9,12 +9,63 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #ff4d4d 0%, #ff1a1a 100%);
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             min-height: 100vh;
             position: relative;
             overflow-x: hidden;
             overflow-y: auto;
             padding-bottom: 60px;
+            transition: background 0.3s ease;
+        }
+
+        .nav-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .gradient-picker {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 100;
+            width: 300px;
+        }
+
+        .gradient-picker.show {
+            display: block;
+        }
+
+        .gradient-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .gradient-inputs input[type="color"] {
+            width: 50px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            border-radius: 3px;
+        }
+
+        .settings-button {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 11;
         }
 
         .nav-buttons {
@@ -205,9 +256,19 @@
     <div id="snow" data-count="150"></div>
     <div id="fireworks-container"></div>
     
-    <div class="nav-buttons">
-        <a href="links.html" class="nav-button active">Links</a>
-        <a href="goals.html" class="nav-button">Goals</a>
+    <div class="nav-container">
+        <div class="nav-buttons">
+            <a href="links.html" class="nav-button active">Links</a>
+            <a href="goals.html" class="nav-button">Goals</a>
+            <a href="read.html" class="nav-button">Read</a>
+        </div>
+        <button class="settings-button" onclick="toggleGradientPicker()">⚙️</button>
+        <div class="gradient-picker" id="gradientPicker">
+            <div class="gradient-inputs">
+                <input type="color" id="gradientStart" value="#4CAF50" onchange="updateGradient()">
+                <input type="color" id="gradientEnd" value="#45a049" onchange="updateGradient()">
+            </div>
+        </div>
     </div>
 
     <div id="links-container">
@@ -239,7 +300,23 @@
     <script src="https://cdn.jsdelivr.net/npm/fireworks-js@2.x/dist/index.umd.js"></script>
 
     <script>
-        // Initialize fireworks and snow when page loads
+        // Add these new functions at the beginning of your script
+        function toggleGradientPicker() {
+            const picker = document.getElementById('gradientPicker');
+            picker.classList.toggle('show');
+        }
+
+        function updateGradient() {
+            const start = document.getElementById('gradientStart').value;
+            const end = document.getElementById('gradientEnd').value;
+            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
+            
+            // Save the gradient colors to localStorage
+            localStorage.setItem('gradientStart', start);
+            localStorage.setItem('gradientEnd', end);
+        }
+
+        // Load saved gradient on page load
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Page loaded, loading links...');
             loadLinks();
@@ -248,6 +325,14 @@
             // Initialize snow effect
             createSnow();
             showSnow(true);
+            
+            // Load saved gradient colors
+            const start = localStorage.getItem('gradientStart') || '#4CAF50';
+            const end = localStorage.getItem('gradientEnd') || '#45a049';
+            
+            document.getElementById('gradientStart').value = start;
+            document.getElementById('gradientEnd').value = end;
+            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
         });
 
         function initFireworks() {
