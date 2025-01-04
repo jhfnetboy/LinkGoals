@@ -37,8 +37,8 @@ db.serialize(() => {
 
     // 导入单词
     try {
-        // 读取Excel文件
-        const excelPath = path.join(__dirname, '../dictionary/oxford-88973.xlsx');
+        // 读取 Excel 文件
+        const excelPath = path.join(__dirname, './oxford-88973.xlsx');
         console.log('Reading Excel file:', excelPath);
         
         const workbook = xlsx.readFile(excelPath);

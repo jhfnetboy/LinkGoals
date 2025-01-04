@@ -15,6 +15,8 @@ npm start
 每次更新，请
 git pull
 npm install
+node scripts/import-words.js
+
 npm start
 ```
 ### 2025-01-04
