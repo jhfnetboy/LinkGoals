@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Goals Management</title>
+    <title>Goals</title>
+    <link rel="stylesheet" href="css/toolbar.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,58 +24,13 @@
             margin-bottom: 20px;
         }
 
-        .gradient-picker {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: none;
-            z-index: 100;
-            width: 300px;
-        }
-
-        .gradient-picker.show {
-            display: block;
-        }
-
-        .gradient-inputs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .gradient-inputs input[type="color"] {
-            width: 50px;
-            height: 30px;
-            padding: 0;
-            border: none;
-            border-radius: 3px;
-        }
-
-        .settings-button {
-            position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 20px;
-            z-index: 11;
-        }
-
         .nav-buttons {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             justify-content: center;
             max-width: 800px;
-            margin: 0 auto 20px;
+            margin: 0 auto;
             z-index: 10;
             position: relative;
         }
@@ -125,94 +81,92 @@
 
         .goal-header {
             display: flex;
-            align-items: center;
+            gap: 10px;
             margin-bottom: 20px;
         }
 
         .goal-input {
-            flex: 1;
+            flex-grow: 1;
             padding: 8px;
-            margin-right: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-size: 14px;
         }
 
         .add-button {
-            padding: 8px 15px;
-            background-color: #4CAF50;
+            background: #4CAF50;
             color: white;
             border: none;
             border-radius: 4px;
+            width: 30px;
+            height: 30px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
         }
 
         .add-button:hover {
-            background-color: #45a049;
+            background: #45a049;
         }
 
         .goal-list {
-            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .goal-item {
             display: flex;
             align-items: center;
+            gap: 10px;
             padding: 10px;
-            margin-bottom: 10px;
+            background: #f5f5f5;
             border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            background-color: #f9f9f9;
+            transition: background-color 0.2s;
         }
 
-        .goal-content {
-            flex: 1;
-            margin-right: 10px;
-            padding: 5px;
-            border-radius: 3px;
-            min-height: 20px;
+        .goal-item:hover {
+            background: #e0e0e0;
         }
 
-        .goal-content:focus {
-            outline: 1px solid #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
+        .goal-text {
+            flex-grow: 1;
+            font-size: 16px;
+            text-decoration: none;
+            color: #333;
+            transition: color 0.2s;
+            padding: 4px 0;
+        }
+
+        .goal-item.completed .goal-text {
+            text-decoration: line-through;
+            color: #888;
         }
 
         .goal-actions {
             display: flex;
-            gap: 5px;
-            align-items: center;
+            gap: 10px;
+            margin-left: auto;
         }
 
-        .goal-actions button {
-            padding: 5px 10px;
-            background: #ff4444;
-            color: white;
+        .delete-button {
+            background: none;
             border: none;
-            border-radius: 3px;
+            color: #ff4444;
             cursor: pointer;
-        }
-
-        .goal-actions button:hover {
-            background: #cc0000;
-        }
-
-        .parent-selection {
-            margin-right: 10px;
-        }
-
-        .parent-selection select {
-            padding: 5px;
-            border-radius: 3px;
-            border: 1px solid #ddd;
-        }
-
-        input[type="color"] {
-            width: 30px;
-            height: 30px;
+            font-size: 18px;
             padding: 0;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+
+        .delete-button:hover {
+            color: #ff0000;
         }
 
         .footer {
@@ -226,103 +180,6 @@
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             z-index: 100;
         }
-
-        .music-control {
-            position: absolute;
-            right: 60px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 20px;
-            z-index: 11;
-        }
-
-        .music-picker {
-            position: absolute;
-            top: 100%;
-            right: 60px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: none;
-            z-index: 100;
-            width: 200px;
-        }
-
-        .music-picker.show {
-            display: block;
-        }
-
-        .music-list {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .music-item {
-            padding: 8px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-
-        .music-item:hover {
-            background: #f0f0f0;
-        }
-
-        .music-item.active {
-            background: #e0e0e0;
-            font-weight: bold;
-        }
-
-        .music-controller {
-            position: absolute;
-            right: 100px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            padding: 5px 10px;
-            display: none;
-            align-items: center;
-            gap: 10px;
-            backdrop-filter: blur(5px);
-            z-index: 11;
-        }
-
-        .music-controller.show {
-            display: flex;
-        }
-
-        .music-controller button {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 0;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .music-controller button:hover {
-            color: #e0e0e0;
-        }
-
-        .music-controller .music-name {
-            color: white;
-            font-size: 14px;
-            margin: 0 5px;
-            max-width: 150px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
     </style>
 </head>
 <body>
@@ -333,28 +190,43 @@
             <a href="read.html" class="nav-button">Read</a>
             <a href="words.html" class="nav-button">Words</a>
         </div>
+        <button class="music-control" onclick="toolbar.toggleMusic()">🔈</button>
         <div class="music-controller" id="musicController">
-            <button onclick="playPrevious()">⬅️</button>
+            <button onclick="toolbar.playPrevious()">⬅️</button>
             <span class="music-name" id="currentMusicName"></span>
-            <button onclick="playNext()">➡️</button>
+            <button onclick="toolbar.playNext()">➡️</button>
         </div>
-        <button class="music-control" onclick="toggleMusic()">🔈</button>
         <div class="music-picker" id="musicPicker">
             <div class="picker-header">
                 <span class="picker-title">Background Music</span>
-                <button class="close-button" onclick="toggleMusicPicker()">×</button>
+                <button class="close-button" onclick="toolbar.toggleMusicPicker()">×</button>
             </div>
             <div class="music-list" id="musicList"></div>
         </div>
-        <button class="settings-button" onclick="toggleGradientPicker()">⚙️</button>
+        <button class="alarm-button" onclick="toolbar.toggleAlarmPicker()">⏰</button>
+        <button class="settings-button" onclick="toolbar.toggleGradientPicker()">⚙️</button>
         <div class="gradient-picker" id="gradientPicker">
             <div class="picker-header">
                 <span class="picker-title">Background Color</span>
-                <button class="close-button" onclick="toggleGradientPicker()">×</button>
+                <button class="close-button" onclick="toolbar.toggleGradientPicker()">×</button>
             </div>
             <div class="gradient-inputs">
-                <input type="color" id="gradientStart" value="#4CAF50" onchange="updateGradient()">
-                <input type="color" id="gradientEnd" value="#45a049" onchange="updateGradient()">
+                <input type="color" id="gradientStart" value="#4CAF50" onchange="toolbar.updateGradient()">
+                <input type="color" id="gradientEnd" value="#45a049" onchange="toolbar.updateGradient()">
+            </div>
+        </div>
+        <div class="gradient-picker" id="alarmPicker" style="right: 60px; left: auto; transform: none;">
+            <div class="picker-header">
+                <span class="picker-title">Alarm Clock</span>
+                <button class="close-button" onclick="toolbar.toggleAlarmPicker()">×</button>
+            </div>
+            <div class="alarm-section">
+                <div class="alarm-input">
+                    <input type="datetime-local" id="alarmTime">
+                    <textarea id="alarmNote" placeholder="Alarm note (will be spoken)"></textarea>
+                    <button onclick="toolbar.addAlarm()">Add Alarm</button>
+                </div>
+                <div class="alarm-list" id="alarmList"></div>
             </div>
         </div>
     </div>
@@ -400,153 +272,6 @@
 
     <script src="js/goals-util.js"></script>
     <script src="js/goals.js"></script>
-
-    <script>
-        function toggleGradientPicker() {
-            const picker = document.getElementById('gradientPicker');
-            picker.classList.toggle('show');
-        }
-
-        function updateGradient() {
-            const start = document.getElementById('gradientStart').value;
-            const end = document.getElementById('gradientEnd').value;
-            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
-            
-            // Save the gradient colors to localStorage
-            localStorage.setItem('gradientStart', start);
-            localStorage.setItem('gradientEnd', end);
-        }
-
-        let audio = null;
-        let isPlaying = false;
-        let currentMusic = null;
-        let musicFiles = [];
-        let currentMusicIndex = 0;
-
-        async function loadMusicList() {
-            try {
-                const response = await fetch('/api/music');
-                if (!response.ok) throw new Error('Failed to load music list');
-                musicFiles = await response.json();
-                displayMusicList(musicFiles);
-                if (musicFiles.length > 0) {
-                    currentMusic = musicFiles[0];
-                    currentMusicIndex = 0;
-                    initAudio(currentMusic);
-                }
-            } catch (error) {
-                console.error('Error loading music list:', error);
-            }
-        }
-
-        function displayMusicList(musicFiles) {
-            const list = document.getElementById('musicList');
-            list.innerHTML = '';
-            
-            musicFiles.forEach(file => {
-                const div = document.createElement('div');
-                div.className = 'music-item' + (file === currentMusic ? ' active' : '');
-                div.textContent = file.replace(/\.mp3$/, '');
-                div.onclick = () => selectMusic(file);
-                list.appendChild(div);
-            });
-        }
-
-        function initAudio(file) {
-            if (audio) {
-                audio.pause();
-                audio = null;
-            }
-            audio = new Audio(`/music/${file}`);
-            audio.loop = false;
-            audio.addEventListener('ended', playNext);
-        }
-
-        function selectMusic(file) {
-            currentMusic = file;
-            initAudio(file);
-            if (isPlaying) {
-                audio.play();
-            }
-            displayMusicList([...document.querySelectorAll('.music-item')].map(el => 
-                el.textContent + '.mp3'
-            ));
-            toggleMusicPicker();
-        }
-
-        function toggleMusic() {
-            if (!audio && currentMusic) {
-                initAudio(currentMusic);
-            }
-            
-            if (audio) {
-                if (isPlaying) {
-                    audio.pause();
-                    document.querySelector('.music-control').textContent = '🔈';
-                } else {
-                    audio.play();
-                    document.querySelector('.music-control').textContent = '🔊';
-                }
-                isPlaying = !isPlaying;
-                updateMusicController();
-            }
-        }
-
-        function toggleMusicPicker() {
-            const picker = document.getElementById('musicPicker');
-            picker.classList.toggle('show');
-        }
-
-        function updateMusicController() {
-            const controller = document.getElementById('musicController');
-            const musicName = document.getElementById('currentMusicName');
-            
-            if (isPlaying) {
-                controller.classList.add('show');
-                if (currentMusic) {
-                    musicName.textContent = currentMusic.replace(/\.(mp3|wav)$/, '');
-                }
-            } else {
-                controller.classList.remove('show');
-            }
-        }
-
-        function playPrevious() {
-            if (musicFiles.length === 0) return;
-            
-            currentMusicIndex = (currentMusicIndex - 1 + musicFiles.length) % musicFiles.length;
-            currentMusic = musicFiles[currentMusicIndex];
-            initAudio(currentMusic);
-            if (isPlaying) {
-                audio.play();
-            }
-            updateMusicController();
-        }
-
-        function playNext() {
-            if (musicFiles.length === 0) return;
-            
-            currentMusicIndex = (currentMusicIndex + 1) % musicFiles.length;
-            currentMusic = musicFiles[currentMusicIndex];
-            initAudio(currentMusic);
-            if (isPlaying) {
-                audio.play();
-            }
-            updateMusicController();
-        }
-
-        // Update your DOMContentLoaded event
-        document.addEventListener('DOMContentLoaded', () => {
-            loadMusicList();
-            
-            // Load saved gradient colors
-            const start = localStorage.getItem('gradientStart') || '#4CAF50';
-            const end = localStorage.getItem('gradientEnd') || '#45a049';
-            
-            document.getElementById('gradientStart').value = start;
-            document.getElementById('gradientEnd').value = end;
-            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
-        });
-    </script>
+    <script src="js/toolbar.js"></script>
 </body>
 </html> 

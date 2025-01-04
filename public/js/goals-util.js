@@ -21,13 +21,13 @@ function createGoalElement(goal, type) {
     div.id = goal.id;
     div.style.backgroundColor = goal.backgroundColor || '#f9f9f9';
     
-    // Add goal content
-    const contentSpan = document.createElement('span');
-    contentSpan.className = 'goal-content';
-    contentSpan.contentEditable = 'true';
-    contentSpan.textContent = goal.content;
-    contentSpan.addEventListener('blur', async () => {
-        const newContent = contentSpan.textContent.trim();
+    // Add goal text
+    const textSpan = document.createElement('span');
+    textSpan.className = 'goal-text';
+    textSpan.contentEditable = 'true';
+    textSpan.textContent = goal.content;
+    textSpan.addEventListener('blur', async () => {
+        const newContent = textSpan.textContent.trim();
         if (newContent && newContent !== goal.content) {
             try {
                 const manager = getManagerForType(type);
@@ -39,11 +39,11 @@ function createGoalElement(goal, type) {
                 await updateParentSelections();
             } catch (error) {
                 console.error('Error updating goal content:', error);
-                contentSpan.textContent = goal.content; // Revert on error
+                textSpan.textContent = goal.content; // Revert on error
             }
         }
     });
-    div.appendChild(contentSpan);
+    div.appendChild(textSpan);
     
     // Add parent selection for month and week goals
     if (type === 'month' || type === 'week') {
@@ -67,6 +67,7 @@ function createGoalElement(goal, type) {
     // Color picker
     const colorInput = document.createElement('input');
     colorInput.type = 'color';
+    colorInput.className = 'color-picker';
     colorInput.value = goal.backgroundColor || '#f9f9f9';
     colorInput.addEventListener('change', async (e) => {
         await updateGoalColor(goal.id, e.target.value);
@@ -77,6 +78,7 @@ function createGoalElement(goal, type) {
     
     // Delete button
     const deleteButton = document.createElement('button');
+    deleteButton.className = 'delete-button';
     deleteButton.textContent = '×';
     deleteButton.onclick = async () => {
         await deleteGoal(goal.id);
@@ -86,6 +88,7 @@ function createGoalElement(goal, type) {
     actionsDiv.appendChild(deleteButton);
     
     div.appendChild(actionsDiv);
+    
     return div;
 }
 

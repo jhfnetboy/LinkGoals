@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reading Cards</title>
+    <link rel="stylesheet" href="css/toolbar.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,6 +33,28 @@
             margin: 0 auto;
             z-index: 10;
             position: relative;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: #f0f0f0;
+            color: #333;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .nav-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .nav-button.active {
+            background-color: #4CAF50;
+            color: white;
         }
 
         .gradient-picker {
@@ -181,28 +204,6 @@
 
         .add-button:hover {
             background-color: #45a049;
-        }
-
-        .nav-button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background-color: #f0f0f0;
-            color: #333;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .nav-button:hover {
-            background-color: #e0e0e0;
-        }
-
-        .nav-button.active {
-            background-color: #4CAF50;
-            color: white;
         }
 
         .cards-container {
@@ -451,42 +452,41 @@
             <a href="read.html" class="nav-button active">Read</a>
             <a href="words.html" class="nav-button">Words</a>
         </div>
+        <button class="music-control" onclick="toolbar.toggleMusic()">🔈</button>
         <div class="music-controller" id="musicController">
-            <button onclick="playPrevious()">⬅️</button>
+            <button onclick="toolbar.playPrevious()">⬅️</button>
             <span class="music-name" id="currentMusicName"></span>
-            <button onclick="playNext()">➡️</button>
+            <button onclick="toolbar.playNext()">➡️</button>
         </div>
-        <button class="music-control" onclick="toggleMusic()">🔈</button>
         <div class="music-picker" id="musicPicker">
             <div class="picker-header">
                 <span class="picker-title">Background Music</span>
-                <button class="close-button" onclick="toggleMusicPicker()">×</button>
+                <button class="close-button" onclick="toolbar.toggleMusicPicker()">×</button>
             </div>
             <div class="music-list" id="musicList"></div>
         </div>
-        <button class="add-button" onclick="addCard()">+</button>
-        <button class="alarm-button" onclick="toggleAlarmPicker()">⏰</button>
-        <button class="settings-button" onclick="toggleGradientPicker()">⚙️</button>
+        <button class="alarm-button" onclick="toolbar.toggleAlarmPicker()">⏰</button>
+        <button class="settings-button" onclick="toolbar.toggleGradientPicker()">⚙️</button>
         <div class="gradient-picker" id="gradientPicker">
             <div class="picker-header">
                 <span class="picker-title">Background Color</span>
-                <button class="close-button" onclick="toggleGradientPicker()">×</button>
+                <button class="close-button" onclick="toolbar.toggleGradientPicker()">×</button>
             </div>
             <div class="gradient-inputs">
-                <input type="color" id="gradientStart" value="#4CAF50" onchange="updateGradient()">
-                <input type="color" id="gradientEnd" value="#45a049" onchange="updateGradient()">
+                <input type="color" id="gradientStart" value="#4CAF50" onchange="toolbar.updateGradient()">
+                <input type="color" id="gradientEnd" value="#45a049" onchange="toolbar.updateGradient()">
             </div>
         </div>
         <div class="gradient-picker" id="alarmPicker" style="right: 60px; left: auto; transform: none;">
             <div class="picker-header">
                 <span class="picker-title">Alarm Clock</span>
-                <button class="close-button" onclick="toggleAlarmPicker()">×</button>
+                <button class="close-button" onclick="toolbar.toggleAlarmPicker()">×</button>
             </div>
             <div class="alarm-section">
                 <div class="alarm-input">
                     <input type="datetime-local" id="alarmTime">
                     <textarea id="alarmNote" placeholder="Alarm note (will be spoken)"></textarea>
-                    <button onclick="addAlarm()">Add Alarm</button>
+                    <button onclick="toolbar.addAlarm()">Add Alarm</button>
                 </div>
                 <div class="alarm-list" id="alarmList"></div>
             </div>
@@ -507,10 +507,10 @@
         </div>
     </div>
 
+    <script src="js/toolbar.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             loadCards();
-            loadMusicList();
             
             // Load saved gradient colors
             const start = localStorage.getItem('gradientStart') || '#4CAF50';
@@ -519,14 +519,6 @@
             document.getElementById('gradientStart').value = start;
             document.getElementById('gradientEnd').value = end;
             document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
-
-            loadAlarms();
-            
-            // Set default value for alarm time input to current time
-            const now = new Date();
-            now.setMinutes(now.getMinutes() + 1); // Set to next minute by default
-            const timeString = now.toISOString().slice(0, 16);
-            document.getElementById('alarmTime').value = timeString;
         });
 
         async function loadCards() {

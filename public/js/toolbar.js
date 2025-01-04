@@ -5,9 +5,15 @@ class Toolbar {
         this.currentMusic = null;
         this.musicFiles = [];
         this.currentMusicIndex = 0;
+        this.isRepeat = false;
+        this.alarms = [];
+        this.speechSynth = window.speechSynthesis;
+        this.dismissCount = 0;
+        this.currentAlarmInterval = null;
 
         this.loadSavedSettings();
         this.initializeEventListeners();
+        this.loadAlarms();
     }
 
     initializeEventListeners() {
@@ -52,7 +58,14 @@ class Toolbar {
         }
         this.audio = new Audio(`/music/${file}`);
         this.audio.loop = false; // Disable loop for auto-next
-        this.audio.addEventListener('ended', () => this.playNext());
+        this.audio.addEventListener('ended', () => {
+            if (this.isRepeat) {
+                this.audio.currentTime = 0;
+                this.audio.play();
+            } else {
+                this.playNext();
+            }
+        });
     }
 
     selectMusic(file) {
@@ -100,15 +113,22 @@ class Toolbar {
     updateMusicController() {
         const controller = document.getElementById('musicController');
         const musicName = document.getElementById('currentMusicName');
-        if (!controller || !musicName) return;
-        
-        if (this.isPlaying) {
-            controller.classList.add('show');
-            if (this.currentMusic) {
-                musicName.textContent = this.currentMusic.replace(/\.(mp3|wav)$/, '');
+        if (controller && musicName) {
+            controller.className = this.isPlaying ? 'music-controller show' : 'music-controller';
+            musicName.textContent = this.currentMusic ? this.currentMusic.replace(/\.(mp3|wav)$/, '') : '';
+            
+            // Update repeat button
+            let repeatBtn = controller.querySelector('.repeat-button');
+            if (!repeatBtn) {
+                repeatBtn = document.createElement('button');
+                repeatBtn.className = 'repeat-button';
+                repeatBtn.onclick = () => this.toggleRepeat();
+                // Insert repeat button before the next button
+                const nextBtn = controller.querySelector('button:last-child');
+                controller.insertBefore(repeatBtn, nextBtn);
             }
-        } else {
-            controller.classList.remove('show');
+            repeatBtn.className = `repeat-button${this.isRepeat ? ' active' : ''}`;
+            repeatBtn.textContent = this.isRepeat ? '🔁' : '↪️';
         }
     }
 
@@ -167,6 +187,139 @@ class Toolbar {
         const picker = document.getElementById('alarmPicker');
         if (picker) {
             picker.style.display = picker.style.display === 'none' || !picker.style.display ? 'block' : 'none';
+        }
+    }
+
+    toggleRepeat() {
+        this.isRepeat = !this.isRepeat;
+        this.updateMusicController();
+    }
+
+    addAlarm() {
+        const timeInput = document.getElementById('alarmTime');
+        const noteInput = document.getElementById('alarmNote');
+        
+        const time = new Date(timeInput.value);
+        const note = noteInput.value.trim();
+        
+        if (!time || !note) {
+            alert('Please set both time and note for the alarm');
+            return;
+        }
+
+        const alarm = {
+            id: Date.now(),
+            time: time,
+            note: note
+        };
+
+        this.alarms.push(alarm);
+        this.saveAlarms();
+        this.displayAlarms();
+        this.setAlarmTimeout(alarm);
+
+        // Clear inputs
+        timeInput.value = '';
+        noteInput.value = '';
+    }
+
+    showAlarmModal(note) {
+        const modal = document.getElementById('alarmModal');
+        const message = document.getElementById('alarmMessage');
+        const dismissBtn = document.getElementById('alarmDismiss');
+        
+        if (!modal || !message || !dismissBtn) return;
+        
+        message.textContent = note;
+        modal.style.display = 'flex';
+        this.dismissCount = 0;
+        dismissBtn.textContent = 'Got it!';
+
+        // Start repeating speech
+        this.currentAlarmInterval = setInterval(() => {
+            this.speakAlarm(note);
+        }, 5000); // Repeat every 5 seconds
+
+        dismissBtn.onclick = () => {
+            this.dismissCount++;
+            if (this.dismissCount >= 2) {
+                modal.style.display = 'none';
+                this.dismissCount = 0;
+                clearInterval(this.currentAlarmInterval);
+                this.speechSynth.cancel(); // Stop any ongoing speech
+                dismissBtn.textContent = 'Got it!';
+            } else {
+                dismissBtn.textContent = 'Click once more to dismiss';
+            }
+        };
+    }
+
+    setAlarmTimeout(alarm) {
+        const now = new Date();
+        const timeUntilAlarm = alarm.time - now;
+        
+        if (timeUntilAlarm > 0) {
+            setTimeout(() => {
+                const prefixedNote = "It is time to " + alarm.note;
+                this.showAlarmModal(prefixedNote);
+                this.deleteAlarm(alarm.id);
+            }, timeUntilAlarm);
+        }
+    }
+
+    speakAlarm(text) {
+        // Cancel any ongoing speech
+        this.speechSynth.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Check if text contains Chinese characters
+        if (/[\u4e00-\u9fa5]/.test(text)) {
+            utterance.lang = 'zh-CN';
+            utterance.rate = 0.9; // Slightly slower rate for Chinese
+        } else {
+            utterance.lang = 'en-US';
+            utterance.rate = 1.0;
+        }
+        
+        this.speechSynth.speak(utterance);
+    }
+
+    displayAlarms() {
+        const list = document.getElementById('alarmList');
+        if (!list) return;
+        
+        list.innerHTML = '';
+        this.alarms.sort((a, b) => a.time - b.time).forEach(alarm => {
+            const div = document.createElement('div');
+            div.className = 'alarm-item';
+            div.innerHTML = `
+                <span>${new Date(alarm.time).toLocaleString()} - ${alarm.note}</span>
+                <button onclick="toolbar.deleteAlarm(${alarm.id})">×</button>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    deleteAlarm(id) {
+        this.alarms = this.alarms.filter(alarm => alarm.id !== id);
+        this.saveAlarms();
+        this.displayAlarms();
+    }
+
+    saveAlarms() {
+        localStorage.setItem('alarms', JSON.stringify(this.alarms));
+    }
+
+    loadAlarms() {
+        const savedAlarms = localStorage.getItem('alarms');
+        if (savedAlarms) {
+            this.alarms = JSON.parse(savedAlarms).map(alarm => ({
+                ...alarm,
+                time: new Date(alarm.time)
+            }));
+            this.alarms.forEach(alarm => this.setAlarmTimeout(alarm));
+            this.displayAlarms();
         }
     }
 }

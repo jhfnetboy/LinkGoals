@@ -24,7 +24,7 @@
 
 .music-controller {
     position: absolute;
-    right: 100px;
+    right: 180px;
     top: 50%;
     transform: translateY(-50%);
     background: rgba(255, 255, 255, 0.2);
@@ -35,6 +35,7 @@
     gap: 10px;
     backdrop-filter: blur(5px);
     z-index: 11;
+    min-width: 200px;
 }
 
 .music-controller.show {
@@ -53,6 +54,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s ease;
 }
 
 .music-controller button:hover {
@@ -147,6 +149,16 @@
     padding: 0;
     border: none;
     border-radius: 3px;
+}
+
+.music-controller button.repeat-button {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    padding: 4px;
+}
+
+.music-controller button.repeat-button.active {
+    background: rgba(76, 175, 80, 0.4);
 }
 
 /* Remove unused styles */ 
