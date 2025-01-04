@@ -13,13 +13,15 @@ npm start
 ## Updated
 ### 2025-01-04
 1. use local dictiionary file to generate words
-2. get your own dictionary file from https://mdict.org/page/3/
+2. get your own dictionary file and import to your db, using the scripts/import-words.js
 3. put it in the dictionary folder
-4. run npm start to generate words
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501042243327.png)
 
 ### 2025-01-02
 1. add alarm clock
-2. add words rain: need you add a env file, and add a api key from https://rapidapi.com/sheharyar566/
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501042245830.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501042245831.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202501042245832.png)
 ```
 你需要按以下步骤在 RapidAPI 申请 API key：
 访问 RapidAPI 官网：https://rapidapi.com/
