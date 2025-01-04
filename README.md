@@ -11,6 +11,13 @@ npm start
 ```
 
 ## Updated
+### 2025-01-04
+1. use local dictiionary file to generate words
+2. get your own dictionary file from https://mdict.org/page/3/
+3. put it in the dictionary folder
+4. run npm start to generate words
+
+### 2025-01-02
 1. add alarm clock
 2. add words rain: need you add a env file, and add a api key from https://rapidapi.com/sheharyar566/
 ```

@@ -1,46 +1,46 @@
-require('dotenv').config();
 const express = require('express');
 const path = require('node:path');
 const fs = require('node:fs').promises;
+const sqlite3 = require('sqlite3').verbose();
 const { goalsDb, linksDb, cardsDb } = require('./db/database');
-const axios = require('axios');
 
 const app = express();
 const port = 3086;
 
+// Initialize database connection for words
+const db = new sqlite3.Database(path.join(__dirname, 'data/jlab.db'), (err) => {
+    if (err) {
+        console.error('Error connecting to database:', err);
+        process.exit(1);
+    }
+    console.log('Connected to database');
+});
+
+// Middleware
 app.use(express.json());
 app.use(express.static('public'));
 app.use('/music', express.static('music'));
+app.use('/node_modules', express.static('node_modules'));
 
 // Serve links.html as the root page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'links.html'));
 });
 
-// Serve node_modules directory for client-side imports
-app.use('/node_modules', express.static('node_modules'));
-
 // Links API routes
-app.get('/api/load', async (req, res) => {
+app.get('/api/links', async (req, res) => {
     try {
         const links = await linksDb.getLinks();
         res.json(links);
     } catch (error) {
-        console.error('Error loading links:', error);
-        res.status(500).json({ error: 'Failed to load links' });
+        console.error('Error getting links:', error);
+        res.status(500).json({ error: 'Failed to get links' });
     }
 });
 
 app.post('/api/links', async (req, res) => {
     try {
-        const { name } = req.body;
-        const [linkName, url, tag] = name.split(',').map(s => s.trim());
-        if (!linkName || !url) {
-            res.status(400).json({ error: 'Invalid link format' });
-            return;
-        }
-
-        // Add https:// if not present
+        const { name: linkName, url, tag } = req.body;
         const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
 
         const links = await linksDb.saveLink({ 
@@ -170,6 +170,28 @@ app.delete('/api/cards/:id', async (req, res) => {
     }
 });
 
+// Dictionary API endpoint
+app.get('/api/dictionary/random', (req, res) => {
+    try {
+        // Get a random word from the database
+        db.get('SELECT english as word, chinese as definition FROM words ORDER BY RANDOM() LIMIT 1', (err, row) => {
+            if (err) {
+                console.error('Error fetching word:', err);
+                return res.status(500).json({ error: 'Failed to fetch word' });
+            }
+            
+            if (!row) {
+                return res.status(404).json({ error: 'No words found in database' });
+            }
+
+            res.json(row);
+        });
+    } catch (error) {
+        console.error('Error fetching word:', error);
+        res.status(500).json({ error: 'Failed to fetch word' });
+    }
+});
+
 // Music API routes
 app.get('/api/music', async (req, res) => {
     try {
@@ -191,36 +213,7 @@ app.get('/api/music', async (req, res) => {
     }
 });
 
-// Dictionary API endpoint
-app.get('/api/dictionary/random', async (req, res) => {
-    try {
-        // Using WordsAPI to get random word and definition
-        const options = {
-            method: 'GET',
-            url: 'https://wordsapiv1.p.rapidapi.com/words/',
-            params: { random: 'true' },
-            headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                'X-RapidAPI-Host': 'wordsapiv1.p.rapidapi.com'
-            }
-        };
-
-        const response = await axios.request(options);
-        const word = response.data;
-
-        // Extract the first definition if available
-        const definition = word.results?.[0]?.definition ?? 'No definition available';
-
-        res.json({
-            word: word.word,
-            definition: definition
-        });
-    } catch (error) {
-        console.error('Error fetching word:', error);
-        res.status(500).json({ error: 'Failed to fetch word' });
-    }
-});
-
+// Start server
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server running at http://localhost:${port}`);
 }); 

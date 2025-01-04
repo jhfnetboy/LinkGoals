@@ -136,3 +136,4 @@ dist
 
 # jhf add
 data/goals.db
+dictionary/*

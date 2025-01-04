@@ -373,6 +373,7 @@
             white-space: nowrap;
         }
     </style>
+    <link rel="stylesheet" href="css/toolbar.css">
 </head>
 <body>
     <div id="snow" data-count="150"></div>
@@ -383,29 +384,31 @@
             <a href="links.html" class="nav-button active">Links</a>
             <a href="goals.html" class="nav-button">Goals</a>
             <a href="read.html" class="nav-button">Read</a>
+            <a href="words.html" class="nav-button">Words</a>
         </div>
+        <button class="music-control" onclick="toolbar.toggleMusic()">🔈</button>
         <div class="music-controller" id="musicController">
-            <button onclick="playPrevious()">⬅️</button>
+            <button onclick="toolbar.playPrevious()">⬅️</button>
             <span class="music-name" id="currentMusicName"></span>
-            <button onclick="playNext()">➡️</button>
+            <button onclick="toolbar.playNext()">➡️</button>
         </div>
-        <button class="music-control" onclick="toggleMusic()">🔈</button>
         <div class="music-picker" id="musicPicker">
             <div class="picker-header">
                 <span class="picker-title">Background Music</span>
-                <button class="close-button" onclick="toggleMusicPicker()">×</button>
+                <button class="close-button" onclick="toolbar.toggleMusicPicker()">×</button>
             </div>
             <div class="music-list" id="musicList"></div>
         </div>
-        <button class="settings-button" onclick="toggleGradientPicker()">⚙️</button>
+        <button class="alarm-button" onclick="toolbar.toggleAlarmPicker()">⏰</button>
+        <button class="settings-button" onclick="toolbar.toggleGradientPicker()">⚙️</button>
         <div class="gradient-picker" id="gradientPicker">
             <div class="picker-header">
                 <span class="picker-title">Background Color</span>
-                <button class="close-button" onclick="toggleGradientPicker()">×</button>
+                <button class="close-button" onclick="toolbar.toggleGradientPicker()">×</button>
             </div>
             <div class="gradient-inputs">
-                <input type="color" id="gradientStart" value="#4CAF50" onchange="updateGradient()">
-                <input type="color" id="gradientEnd" value="#45a049" onchange="updateGradient()">
+                <input type="color" id="gradientStart" value="#4CAF50" onchange="toolbar.updateGradient()">
+                <input type="color" id="gradientEnd" value="#45a049" onchange="toolbar.updateGradient()">
             </div>
         </div>
     </div>
@@ -438,121 +441,9 @@
     <!-- Add Fireworks.js from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/fireworks-js@2.x/dist/index.umd.js"></script>
 
+    <script src="js/toolbar.js"></script>
     <script>
-        // Add these new functions at the beginning of your script
-        function toggleGradientPicker() {
-            const picker = document.getElementById('gradientPicker');
-            picker.classList.toggle('show');
-        }
-
-        function updateGradient() {
-            const start = document.getElementById('gradientStart').value;
-            const end = document.getElementById('gradientEnd').value;
-            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
-            
-            // Save the gradient colors to localStorage
-            localStorage.setItem('gradientStart', start);
-            localStorage.setItem('gradientEnd', end);
-        }
-
-        let audio = null;
-        let isPlaying = false;
-        let currentMusic = null;
-
-        async function loadMusicList() {
-            try {
-                const response = await fetch('/api/music');
-                if (!response.ok) throw new Error('Failed to load music list');
-                musicFiles = await response.json();
-                displayMusicList(musicFiles);
-                if (musicFiles.length > 0) {
-                    currentMusic = musicFiles[0];
-                    currentMusicIndex = 0;
-                    initAudio(currentMusic);
-                }
-            } catch (error) {
-                console.error('Error loading music list:', error);
-            }
-        }
-
-        function displayMusicList(musicFiles) {
-            const list = document.getElementById('musicList');
-            list.innerHTML = '';
-            
-            musicFiles.forEach(file => {
-                const div = document.createElement('div');
-                div.className = 'music-item' + (file === currentMusic ? ' active' : '');
-                div.textContent = file.replace(/\.mp3$/, '');
-                div.onclick = () => selectMusic(file);
-                list.appendChild(div);
-            });
-        }
-
-        function initAudio(file) {
-            if (audio) {
-                audio.pause();
-                audio = null;
-            }
-            audio = new Audio(`/music/${file}`);
-            audio.loop = false; // Disable loop for auto-next
-            audio.addEventListener('ended', playNext);
-        }
-
-        function selectMusic(file) {
-            currentMusic = file;
-            initAudio(file);
-            if (isPlaying) {
-                audio.play();
-            }
-            displayMusicList([...document.querySelectorAll('.music-item')].map(el => 
-                el.textContent + '.mp3'
-            ));
-            toggleMusicPicker();
-        }
-
-        function toggleMusic() {
-            if (!audio && currentMusic) {
-                initAudio(currentMusic);
-            }
-            
-            if (audio) {
-                if (isPlaying) {
-                    audio.pause();
-                    document.querySelector('.music-control').textContent = '🔈';
-                } else {
-                    audio.play();
-                    document.querySelector('.music-control').textContent = '🔊';
-                }
-                isPlaying = !isPlaying;
-                updateMusicController();
-            }
-        }
-
-        function toggleMusicPicker() {
-            const picker = document.getElementById('musicPicker');
-            picker.classList.toggle('show');
-        }
-
-        // Load saved gradient on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Page loaded, loading links...');
-            loadLinks();
-            loadMusicList();
-            initFireworks();
-            
-            // Initialize snow effect
-            createSnow();
-            showSnow(true);
-            
-            // Load saved gradient colors
-            const start = localStorage.getItem('gradientStart') || '#4CAF50';
-            const end = localStorage.getItem('gradientEnd') || '#45a049';
-            
-            document.getElementById('gradientStart').value = start;
-            document.getElementById('gradientEnd').value = end;
-            document.body.style.background = `linear-gradient(135deg, ${start} 0%, ${end} 100%)`;
-        });
-
+        // Initialize fireworks
         function initFireworks() {
             const container = document.getElementById('fireworks-container');
             const fireworks = new Fireworks.default(container, {
@@ -603,6 +494,9 @@
                     move: false,
                     max: 3
                 },
+                boundaries: {
+                    visible: false
+                },
                 sound: {
                     enabled: true,
                     files: [
@@ -611,8 +505,8 @@
                         'https://fireworks.js.org/sounds/explosion2.mp3'
                     ],
                     volume: {
-                        min: 50,
-                        max: 80
+                        min: 8,
+                        max: 12
                     }
                 }
             });
@@ -633,27 +527,64 @@
                 }
             });
 
-            // Test sound on page load
+            // Test fireworks on page load
             setTimeout(() => {
                 fireworks.launch(3);
             }, 1000);
         }
 
+        // Load and display links
         async function loadLinks() {
             try {
-                const response = await fetch('/api/load');
+                const response = await fetch('/api/links');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const links = await response.json();
-                console.log('Loaded links:', links);
                 updateTable(links);
             } catch (error) {
                 console.error('Error loading links:', error);
-                alert('Failed to load links. Please try again.');
             }
         }
 
+        function updateTable(links) {
+            const list1 = document.getElementById('links-list-1');
+            const list2 = document.getElementById('links-list-2');
+            const list3 = document.getElementById('links-list-3');
+            
+            list1.innerHTML = '';
+            list2.innerHTML = '';
+            list3.innerHTML = '';
+            
+            links.forEach((link, index) => {
+                const linkItem = document.createElement('div');
+                linkItem.className = 'link-item';
+                
+                // Create link element with name and tag
+                const linkText = `${index + 1}. ${link.name}${link.notes ? ', ' + link.notes : ''}`;
+                const linkContent = document.createElement('div');
+                linkContent.className = 'link-content';
+                linkContent.innerHTML = `<a href="${link.url}" target="_blank">${linkText}</a>`;
+                
+                // Create actions div with edit and delete buttons
+                const actions = document.createElement('div');
+                actions.className = 'link-actions';
+                actions.innerHTML = `
+                    <button onclick="editLink(${index})">✏️</button>
+                    <button class="delete-button" onclick="deleteLink(${index})">×</button>
+                `;
+                
+                linkItem.appendChild(linkContent);
+                linkItem.appendChild(actions);
+                
+                // Distribute links across columns
+                if (index % 3 === 0) list1.appendChild(linkItem);
+                else if (index % 3 === 1) list2.appendChild(linkItem);
+                else list3.appendChild(linkItem);
+            });
+        }
+
+        // Link management functions
         window.addLink = async function() {
             try {
                 const input = document.getElementById('linkInput');
@@ -733,83 +664,16 @@
             }
         }
 
-        function updateTable(links) {
-            const list1 = document.getElementById('links-list-1');
-            const list2 = document.getElementById('links-list-2');
-            const list3 = document.getElementById('links-list-3');
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, loading links...');
+            loadLinks();
+            initFireworks();
             
-            list1.innerHTML = '';
-            list2.innerHTML = '';
-            list3.innerHTML = '';
-            
-            links.forEach((link, index) => {
-                const linkItem = document.createElement('div');
-                linkItem.className = 'link-item';
-                
-                // Create link element with name and tag
-                const linkText = `${index + 1}. ${link.name}${link.notes ? ', ' + link.notes : ''}`;
-                const linkContent = document.createElement('div');
-                linkContent.className = 'link-content';
-                linkContent.innerHTML = `<a href="${link.url}" target="_blank">${linkText}</a>`;
-                
-                // Create actions div with edit and delete buttons
-                const actions = document.createElement('div');
-                actions.className = 'link-actions';
-                actions.innerHTML = `
-                    <button onclick="editLink(${index})">✏️</button>
-                    <button class="delete-button" onclick="deleteLink(${index})">×</button>
-                `;
-                
-                linkItem.appendChild(linkContent);
-                linkItem.appendChild(actions);
-                
-                // Distribute links across columns
-                if (index % 3 === 0) list1.appendChild(linkItem);
-                else if (index % 3 === 1) list2.appendChild(linkItem);
-                else list3.appendChild(linkItem);
-            });
-        }
-
-        let musicFiles = [];
-        let currentMusicIndex = 0;
-
-        function updateMusicController() {
-            const controller = document.getElementById('musicController');
-            const musicName = document.getElementById('currentMusicName');
-            
-            if (isPlaying) {
-                controller.classList.add('show');
-                if (currentMusic) {
-                    musicName.textContent = currentMusic.replace(/\.(mp3|wav)$/, '');
-                }
-            } else {
-                controller.classList.remove('show');
-            }
-        }
-
-        function playPrevious() {
-            if (musicFiles.length === 0) return;
-            
-            currentMusicIndex = (currentMusicIndex - 1 + musicFiles.length) % musicFiles.length;
-            currentMusic = musicFiles[currentMusicIndex];
-            initAudio(currentMusic);
-            if (isPlaying) {
-                audio.play();
-            }
-            updateMusicController();
-        }
-
-        function playNext() {
-            if (musicFiles.length === 0) return;
-            
-            currentMusicIndex = (currentMusicIndex + 1) % musicFiles.length;
-            currentMusic = musicFiles[currentMusicIndex];
-            initAudio(currentMusic);
-            if (isPlaying) {
-                audio.play();
-            }
-            updateMusicController();
-        }
+            // Initialize snow effect
+            createSnow();
+            showSnow(true);
+        });
     </script>
 </body>
 </html> 

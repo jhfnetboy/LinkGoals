@@ -18,7 +18,9 @@
     "dotenv": "^16.4.7",
     "express": "^4.18.2",
     "fireworks-js": "^2.10.8",
+    "mdict-js": "^10.0.1",
     "pure-snow.js": "^2.1.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
   }
 }

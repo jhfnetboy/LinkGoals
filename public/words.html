@@ -4,32 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Word Rain</title>
+    <link rel="stylesheet" href="css/toolbar.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
+            font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             min-height: 100vh;
-            position: relative;
             overflow: hidden;
-            transition: background 0.3s ease;
         }
 
         .nav-container {
             position: relative;
             margin-bottom: 20px;
+            z-index: 100;
         }
 
         .nav-buttons {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
             justify-content: center;
             max-width: 800px;
-            margin: 0 auto;
-            z-index: 10;
-            position: relative;
+            margin: 0 auto 20px;
         }
 
         .nav-button {
@@ -42,7 +39,6 @@
             background-color: #f0f0f0;
             color: #333;
             text-decoration: none;
-            display: inline-block;
         }
 
         .nav-button:hover {
@@ -56,39 +52,37 @@
 
         .word-container {
             position: absolute;
-            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all var(--fall-duration) ease-in-out;
             z-index: 1;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: opacity 0.5s ease;
-            max-width: 300px;
+            animation: sway var(--sway-duration) ease-in-out infinite alternate;
+        }
+
+        @keyframes sway {
+            from {
+                transform: translateX(calc(var(--sway-offset) * -1)) translateY(var(--fall-progress));
+            }
+            to {
+                transform: translateX(var(--sway-offset)) translateY(var(--fall-progress));
+            }
         }
 
         .word {
-            font-weight: bold;
-            font-size: 18px;
-            color: #333;
+            font-size: 24px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
             margin-bottom: 5px;
+            white-space: nowrap;
         }
 
         .definition {
-            font-size: 14px;
-            color: #666;
-            line-height: 1.4;
-        }
-
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 10px 0;
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
             text-align: center;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-            z-index: 100;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -100,88 +94,122 @@
             <a href="read.html" class="nav-button">Read</a>
             <a href="words.html" class="nav-button active">Words</a>
         </div>
+        <button class="music-control" onclick="toolbar.toggleMusic()">🔈</button>
+        <div class="music-controller" id="musicController">
+            <button onclick="toolbar.playPrevious()">⬅️</button>
+            <span class="music-name" id="currentMusicName"></span>
+            <button onclick="toolbar.playNext()">➡️</button>
+        </div>
+        <div class="music-picker" id="musicPicker">
+            <div class="picker-header">
+                <span class="picker-title">Background Music</span>
+                <button class="close-button" onclick="toolbar.toggleMusicPicker()">×</button>
+            </div>
+            <div class="music-list" id="musicList"></div>
+        </div>
+        <button class="settings-button" onclick="toolbar.toggleGradientPicker()">⚙️</button>
+        <div class="gradient-picker" id="gradientPicker">
+            <div class="picker-header">
+                <span class="picker-title">Background Color</span>
+                <button class="close-button" onclick="toolbar.toggleGradientPicker()">×</button>
+            </div>
+            <div class="gradient-inputs">
+                <input type="color" id="gradientStart" value="#4CAF50" onchange="toolbar.updateGradient()">
+                <input type="color" id="gradientEnd" value="#45a049" onchange="toolbar.updateGradient()">
+            </div>
+        </div>
     </div>
 
-    <div class="footer">
-        jLab Contribution 2024
-    </div>
-
+    <script src="js/toolbar.js"></script>
     <script>
         class WordRain {
             constructor() {
-                this.words = [];
-                this.container = document.body;
-                this.containerWidth = window.innerWidth;
-                this.containerHeight = window.innerHeight;
                 this.init();
+                this.centerWidth = Math.min(800, window.innerWidth * 0.6); // Center 60% of screen width or 800px
+                this.centerOffset = (window.innerWidth - this.centerWidth) / 2;
             }
 
             async init() {
-                window.addEventListener('resize', () => {
-                    this.containerWidth = window.innerWidth;
-                    this.containerHeight = window.innerHeight;
-                });
-
                 this.startWordGeneration();
             }
 
             async getRandomWord() {
                 try {
                     const response = await fetch('/api/dictionary/random');
-                    if (!response.ok) throw new Error('Failed to fetch word');
+                    if (!response.ok) {
+                        throw new Error('Dictionary service unavailable. Please try again later.');
+                    }
                     return await response.json();
                 } catch (error) {
                     console.error('Error fetching word:', error);
-                    return null;
+                    throw error;
                 }
             }
 
             async createWordElement() {
-                const wordData = await this.getRandomWord();
-                if (!wordData) return;
+                const { word, definition } = await this.getRandomWord();
+                const container = document.createElement('div');
+                container.className = 'word-container';
 
-                const element = document.createElement('div');
-                element.className = 'word-container';
-                element.innerHTML = `
-                    <div class="word">${wordData.word}</div>
-                    <div class="definition">${wordData.definition}</div>
-                `;
+                // Set random fall duration between 8-15 seconds
+                const fallDuration = Math.random() * 7000 + 8000; // 8000-15000ms
+                container.style.setProperty('--fall-duration', `${fallDuration}ms`);
 
-                // Random starting position at the top
-                const x = Math.random() * (this.containerWidth - 300);
-                element.style.left = x + 'px';
-                element.style.top = '-100px';
+                // Set sway animation properties
+                const swayDuration = Math.random() * 2000 + 3000; // 3-5 seconds
+                const swayOffset = Math.random() * 30 + 20; // 20-50 pixels
+                container.style.setProperty('--sway-duration', `${swayDuration}ms`);
+                container.style.setProperty('--sway-offset', `${swayOffset}px`);
 
-                this.container.appendChild(element);
+                const wordElement = document.createElement('h3');
+                wordElement.className = 'word';
+                wordElement.textContent = word;
+
+                const definitionElement = document.createElement('div');
+                definitionElement.className = 'definition';
+                definitionElement.textContent = definition;
+
+                container.appendChild(wordElement);
+                container.appendChild(definitionElement);
+
+                // Random starting position in center area
+                const startX = this.centerOffset + Math.random() * this.centerWidth;
+                container.style.left = `${startX}px`;
+                container.style.top = '-100px';
+
+                document.body.appendChild(container);
 
                 // Animate falling
-                const duration = 3000; // 3 seconds
-                const startTime = Date.now();
+                let progress = 0;
+                const startTime = performance.now();
+                const animate = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    progress = (elapsed / fallDuration) * (window.innerHeight + 200);
+                    container.style.setProperty('--fall-progress', `${progress}px`);
 
-                const animate = () => {
-                    const elapsed = Date.now() - startTime;
-                    const progress = elapsed / duration;
-
-                    if (progress >= 1) {
-                        element.remove();
-                        return;
+                    if (elapsed < fallDuration) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        container.remove();
                     }
-
-                    const y = progress * (this.containerHeight + 100);
-                    element.style.top = y + 'px';
-                    requestAnimationFrame(animate);
                 };
 
                 requestAnimationFrame(animate);
             }
 
             startWordGeneration() {
-                setInterval(() => {
-                    this.createWordElement();
-                }, 2000); // New word every 2 seconds
+                // Create a new word every 3-5 seconds
+                const createWord = async () => {
+                    await this.createWordElement();
+                    const delay = Math.random() * 2000 + 3000; // 3-5 seconds
+                    setTimeout(createWord, delay);
+                };
+
+                createWord();
             }
         }
 
+        // Initialize word rain when page loads
         document.addEventListener('DOMContentLoaded', () => {
             new WordRain();
         });
