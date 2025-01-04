@@ -11,17 +11,18 @@ npm start
 ```
 
 ## Updated
+
+### 2025-01-04
 ```
-每次更新，请
+随机生成一个单词飘落，显示在页面上
+
+请更新
 git pull
 npm install
 node scripts/import-words.js
 
 npm start
 ```
-### 2025-01-04
-```
-随机生成一个单词飘落，显示在页面上
 ```
 1. use local dictiionary file to generate words
 2. get your own dictionary excel file and import to your db, using the scripts/import-words.js
