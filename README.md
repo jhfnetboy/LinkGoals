@@ -18,7 +18,7 @@ npm start
 ## Updated
 
 ### 2025-01-05
-
+fix goals add item bug
 
 ### 2025-01-04
 ```
