@@ -40,7 +40,18 @@ app.get('/api/links', async (req, res) => {
 
 app.post('/api/links', async (req, res) => {
     try {
-        const { name: linkName, url, tag } = req.body;
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+
+        // Parse the input string (format: name, url, tag)
+        const [linkName, url, tag] = name.split(',').map(s => s.trim());
+        if (!linkName || !url) {
+            return res.status(400).json({ error: 'Both name and URL are required' });
+        }
+
+        // Add https:// if the URL doesn't start with http:// or https://
         const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
 
         const links = await linksDb.saveLink({ 

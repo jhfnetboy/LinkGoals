@@ -10,7 +10,15 @@ npm install
 npm start 
 ```
 
+## TODO idea
+1. Tauri 打包
+2. 云备份 db
+3. 增加一个任务耗时和时间流逝对比
+
 ## Updated
+
+### 2025-01-05
+
 
 ### 2025-01-04
 ```
@@ -21,7 +29,8 @@ music 增加重复播放当前音乐功能
 git pull
 npm install
 node scripts/import-words.js
-
+如果你没有单词excel，自己下载：https://mdx.mdict.org/Recommend/%E7%89%9B%E6%B4%A5%E9%AB%98%E9%98%B6%E8%8B%B1%E6%B1%89%E5%8F%8C%E8%A7%A3%E8%AF%8D%E5%85%B8%EF%BC%88%E7%AC%AC9%E7%89%88%EF%BC%89-%20%E5%B8%A6%E9%AB%98%E6%B8%85%E7%89%88%E5%9B%BE%E7%89%87.zip
+重命名其中的excel为oxford****.xlsx(看代码)
 npm start
 ```
 ```
