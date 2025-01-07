@@ -1,5 +1,4 @@
 # jhf add
-data/*.db
 music/*.wav
 music/*.mp3
 
@@ -135,5 +134,5 @@ dist
 .pnp.*
 
 # jhf add
-data/goals.db
+data/jLab.db
 dictionary/*

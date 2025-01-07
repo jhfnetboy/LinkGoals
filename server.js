@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('node:path');
 const fs = require('node:fs').promises;
 const sqlite3 = require('sqlite3').verbose();
-const { goalsDb, linksDb, cardsDb } = require('./db/database');
+const { goalsDb, linksDb, cardsDb, atomicTasksDb } = require('./db/database');
 
 const app = express();
 const port = 3086;
@@ -221,6 +221,48 @@ app.get('/api/music', async (req, res) => {
     } catch (error) {
         console.error('Error reading music directory:', error);
         res.status(500).json({ error: 'Failed to load music list' });
+    }
+});
+
+// Atomic Tasks API routes
+app.get('/api/atomic-tasks', async (req, res) => {
+    try {
+        const tasks = await atomicTasksDb.getTasks();
+        res.json(tasks);
+    } catch (error) {
+        console.error('Error getting atomic tasks:', error);
+        res.status(500).json({ error: 'Failed to get atomic tasks' });
+    }
+});
+
+app.post('/api/atomic-tasks', async (req, res) => {
+    try {
+        const task = await atomicTasksDb.saveTask(req.body);
+        res.json(task);
+    } catch (error) {
+        console.error('Error saving atomic task:', error);
+        res.status(500).json({ error: 'Failed to save atomic task' });
+    }
+});
+
+app.put('/api/atomic-tasks/:id', async (req, res) => {
+    try {
+        const { status, totalTime } = req.body;
+        const tasks = await atomicTasksDb.updateTaskStatus(req.params.id, status, totalTime);
+        res.json(tasks);
+    } catch (error) {
+        console.error('Error updating atomic task:', error);
+        res.status(500).json({ error: 'Failed to update atomic task' });
+    }
+});
+
+app.delete('/api/atomic-tasks/:id', async (req, res) => {
+    try {
+        const result = await atomicTasksDb.deleteTask(req.params.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Error deleting atomic task:', error);
+        res.status(500).json({ error: 'Failed to delete atomic task' });
     }
 });
 

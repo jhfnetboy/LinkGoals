@@ -1,9 +1,15 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('node:path');
+const fs = require('node:fs');
 
 // Create database connection
-const dbPath = path.join(__dirname, '..', 'data', 'jLab.db');
-console.log('Initializing SQLite database at:', dbPath);
+const jLabDbPath = path.join(__dirname, '..', 'data', 'jLab.db');
+const exampleDbPath = path.join(__dirname, '..', 'data', 'example.db');
+
+// Choose database file - use jLab.db if exists, otherwise use example.db
+const dbPath = fs.existsSync(jLabDbPath) ? jLabDbPath : exampleDbPath;
+console.log('Using database:', dbPath);
+
 const db = new sqlite3.Database(dbPath);
 
 // Initialize database
@@ -57,6 +63,26 @@ function initDatabase() {
                     return;
                 }
                 console.log('Cards table initialized');
+            });
+
+            // Initialize atomic tasks table
+            db.run(`CREATE TABLE IF NOT EXISTS atomic_tasks (
+                id TEXT PRIMARY KEY,
+                content TEXT NOT NULL,
+                parent_id TEXT,
+                status TEXT DEFAULT 'running',
+                start_time INTEGER,
+                total_time INTEGER DEFAULT 0,
+                background_color TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(parent_id) REFERENCES goals(id)
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating atomic tasks table:', err);
+                    reject(err);
+                    return;
+                }
+                console.log('Atomic tasks table initialized');
                 resolve();
             });
         });
@@ -507,6 +533,55 @@ const cardsDb = {
     }
 };
 
+// Atomic tasks database operations
+const atomicTasksDb = {
+    async getTasks() {
+        return new Promise((resolve, reject) => {
+            db.all('SELECT * FROM atomic_tasks ORDER BY created_at DESC', (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    },
+
+    async saveTask(task) {
+        return new Promise((resolve, reject) => {
+            const { id, content, parent_id } = task;
+            const start_time = Date.now();
+            db.run(
+                'INSERT INTO atomic_tasks (id, content, parent_id, start_time) VALUES (?, ?, ?, ?)',
+                [id, content, parent_id, start_time],
+                (err) => {
+                    if (err) reject(err);
+                    else this.getTasks().then(resolve).catch(reject);
+                }
+            );
+        });
+    },
+
+    async updateTaskStatus(id, status, totalTime) {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE atomic_tasks SET status = ?, total_time = ? WHERE id = ?',
+                [status, totalTime, id],
+                (err) => {
+                    if (err) reject(err);
+                    else this.getTasks().then(resolve).catch(reject);
+                }
+            );
+        });
+    },
+
+    async deleteTask(id) {
+        return new Promise((resolve, reject) => {
+            db.run('DELETE FROM atomic_tasks WHERE id = ?', [id], (err) => {
+                if (err) reject(err);
+                else resolve({ success: true });
+            });
+        });
+    }
+};
+
 // Initialize database on module load
 console.log('Initializing database...');
 initDatabase()
@@ -516,4 +591,9 @@ initDatabase()
         process.exit(1);
     });
 
-module.exports = { goalsDb, linksDb, cardsDb }; 
+module.exports = {
+    goalsDb,
+    linksDb,
+    cardsDb,
+    atomicTasksDb
+}; 
