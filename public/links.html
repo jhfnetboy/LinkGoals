@@ -372,6 +372,71 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
+        .settings-menu {
+            position: absolute;
+            top: 100%;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 100;
+            width: 300px;
+        }
+
+        .settings-menu.show {
+            display: block;
+        }
+
+        .settings-section {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .settings-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .settings-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .settings-button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            background: #f0f0f0;
+            color: #333;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .settings-button:hover {
+            background: #e0e0e0;
+        }
+
+        .settings-button.danger {
+            color: #ff4444;
+        }
+
+        .settings-button.danger:hover {
+            background: #ffe0e0;
+        }
     </style>
     <link rel="stylesheet" href="css/toolbar.css">
 </head>
@@ -400,7 +465,7 @@
             <div class="music-list" id="musicList"></div>
         </div>
         <button class="alarm-button" onclick="toolbar.toggleAlarmPicker()">⏰</button>
-        <button class="settings-button" onclick="toolbar.toggleGradientPicker()">⚙️</button>
+        <button class="settings-button" onclick="toggleSettingsMenu()">⚙️</button>
         <div class="gradient-picker" id="gradientPicker">
             <div class="picker-header">
                 <span class="picker-title">Background Color</span>
@@ -409,6 +474,29 @@
             <div class="gradient-inputs">
                 <input type="color" id="gradientStart" value="#4CAF50" onchange="toolbar.updateGradient()">
                 <input type="color" id="gradientEnd" value="#45a049" onchange="toolbar.updateGradient()">
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-menu" id="settingsMenu">
+        <div class="picker-header">
+            <span class="picker-title">Settings</span>
+            <button class="close-button" onclick="toggleSettingsMenu()">×</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-title">Theme</div>
+            <div class="settings-buttons">
+                <button class="settings-button" onclick="toolbar.toggleGradientPicker()">Change Background Color</button>
+            </div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-title">Data Management</div>
+            <div class="settings-buttons">
+                <button class="settings-button" onclick="backupData('links')">Backup Links</button>
+                <button class="settings-button" onclick="backupData('goals')">Backup Goals</button>
+                <button class="settings-button" onclick="backupData('cards')">Backup Cards</button>
+                <button class="settings-button" onclick="document.getElementById('restoreFile').click()">Restore Data</button>
+                <input type="file" id="restoreFile" style="display: none" onchange="handleRestore(event)">
             </div>
         </div>
     </div>
@@ -668,6 +756,68 @@
             createSnow();
             showSnow(true);
         });
+
+        function toggleSettingsMenu() {
+            const menu = document.getElementById('settingsMenu');
+            menu.classList.toggle('show');
+        }
+
+        async function backupData(table) {
+            try {
+                const response = await fetch(`/api/backup/${table}`);
+                if (!response.ok) throw new Error('Failed to create backup');
+                const data = await response.json();
+                
+                // Create and download backup file
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${table}_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error creating backup:', error);
+                alert('Failed to create backup');
+            }
+        }
+
+        async function handleRestore(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const backup = JSON.parse(await file.text());
+                if (!backup.table || !backup.data || !backup.version) {
+                    throw new Error('Invalid backup file');
+                }
+
+                if (!confirm(`Are you sure you want to restore ${backup.table} data? This will replace all existing ${backup.table}.`)) {
+                    return;
+                }
+
+                const response = await fetch(`/api/restore/${backup.table}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(backup)
+                });
+
+                if (!response.ok) throw new Error('Failed to restore backup');
+                
+                alert('Backup restored successfully');
+                location.reload();
+            } catch (error) {
+                console.error('Error restoring backup:', error);
+                alert('Failed to restore backup: ' + error.message);
+            } finally {
+                event.target.value = ''; // Reset file input
+            }
+        }
+
+        // Update settings button to toggle menu
+        document.querySelector('.settings-button').onclick = toggleSettingsMenu;
     </script>
 </body>
 </html> 

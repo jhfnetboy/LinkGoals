@@ -213,6 +213,7 @@ app.get('/api/music', async (req, res) => {
             await fs.mkdir(musicDir);
         }
         
+        // Always rescan directory for changes
         const files = await fs.readdir(musicDir);
         const musicFiles = files.filter(file => file.endsWith('.mp3') || file.endsWith('.wav'));
         // Sort files alphabetically to ensure consistent playback order
@@ -221,6 +222,72 @@ app.get('/api/music', async (req, res) => {
     } catch (error) {
         console.error('Error reading music directory:', error);
         res.status(500).json({ error: 'Failed to load music list' });
+    }
+});
+
+// Backup/Restore API routes
+app.get('/api/backup/:table', async (req, res) => {
+    try {
+        const { table } = req.params;
+        const validTables = ['links', 'goals', 'cards'];
+        
+        if (!validTables.includes(table)) {
+            return res.status(400).json({ error: 'Invalid table name' });
+        }
+
+        const data = await db.all(`SELECT * FROM ${table}`);
+        res.json({
+            table,
+            data,
+            version: '1.0',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error creating backup:', error);
+        res.status(500).json({ error: 'Failed to create backup' });
+    }
+});
+
+app.post('/api/restore/:table', async (req, res) => {
+    try {
+        const { table } = req.params;
+        const validTables = ['links', 'goals', 'cards'];
+        
+        if (!validTables.includes(table)) {
+            return res.status(400).json({ error: 'Invalid table name' });
+        }
+
+        const backup = req.body;
+        if (backup.table !== table) {
+            return res.status(400).json({ error: 'Table name mismatch' });
+        }
+
+        // Begin transaction
+        await db.run('BEGIN TRANSACTION');
+
+        // Clear existing data
+        await db.run(`DELETE FROM ${table}`);
+
+        // Insert backup data
+        for (const item of backup.data) {
+            const columns = Object.keys(item).join(', ');
+            const placeholders = Object.keys(item).map(() => '?').join(', ');
+            const values = Object.values(item);
+
+            await db.run(
+                `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`,
+                values
+            );
+        }
+
+        // Commit transaction
+        await db.run('COMMIT');
+        res.json({ message: 'Backup restored successfully' });
+    } catch (error) {
+        // Rollback on error
+        await db.run('ROLLBACK');
+        console.error('Error restoring backup:', error);
+        res.status(500).json({ error: 'Failed to restore backup' });
     }
 });
 
@@ -263,6 +330,67 @@ app.delete('/api/atomic-tasks/:id', async (req, res) => {
     } catch (error) {
         console.error('Error deleting atomic task:', error);
         res.status(500).json({ error: 'Failed to delete atomic task' });
+    }
+});
+
+// Music scan endpoint
+app.get('/api/music/scan', async (req, res) => {
+    try {
+        const musicDir = path.join(__dirname, 'public', 'music');
+        const files = await fs.readdir(musicDir);
+        
+        // Filter for supported audio files
+        const audioFiles = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ext === '.mp3' || ext === '.wav';
+        });
+
+        // Update database with new files
+        await db.run('BEGIN TRANSACTION');
+        
+        // Get existing files
+        const existingFiles = await db.all('SELECT filename FROM music_files');
+        const existingFilenames = new Set(existingFiles.map(f => f.filename));
+        
+        // Add new files
+        for (const file of audioFiles) {
+            if (!existingFilenames.has(file)) {
+                await db.run('INSERT INTO music_files (filename) VALUES (?)', [file]);
+            }
+        }
+        
+        // Remove deleted files
+        for (const existing of existingFiles) {
+            if (!audioFiles.includes(existing.filename)) {
+                await db.run('DELETE FROM music_files WHERE filename = ?', [existing.filename]);
+            }
+        }
+        
+        await db.run('COMMIT');
+        res.json({ message: 'Music files scanned successfully' });
+    } catch (error) {
+        await db.run('ROLLBACK');
+        console.error('Error scanning music files:', error);
+        res.status(500).json({ error: 'Failed to scan music files' });
+    }
+});
+
+// Add endpoint to get music file count
+app.get('/api/music-count', async (req, res) => {
+    try {
+        const musicDir = path.join(__dirname, 'public', 'music');
+        const files = await fs.readdir(musicDir);
+        
+        const counts = {
+            mp3: files.filter(f => f.toLowerCase().endsWith('.mp3')).length,
+            wav: files.filter(f => f.toLowerCase().endsWith('.wav')).length,
+            count: files.filter(f => f.toLowerCase().match(/\.(mp3|wav)$/)).length
+        };
+        
+        res.json(counts);
+    } catch (error) {
+        console.error('Error counting music files:', error);
+        res.status(500).json({ error: 'Failed to count music files' });
     }
 });
 

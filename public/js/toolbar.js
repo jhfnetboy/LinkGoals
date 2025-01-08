@@ -14,6 +14,10 @@ class Toolbar {
         this.loadSavedSettings();
         this.initializeEventListeners();
         this.loadAlarms();
+
+        // Add music count display
+        this.createMusicCountDisplay();
+        this.updateMusicPlayerStyle();
     }
 
     initializeEventListeners() {
@@ -23,13 +27,27 @@ class Toolbar {
 
     async loadMusicList() {
         try {
-            const response = await fetch('/api/music');
+            // Force server to rescan music directory
+            const response = await fetch('/api/music?rescan=true');
             if (!response.ok) throw new Error('Failed to load music list');
             this.musicFiles = await response.json();
             this.displayMusicList();
+            
+            // Update music count display - show only number
+            const countElement = document.getElementById('musicCount');
+            if (countElement) {
+                countElement.textContent = this.musicFiles.length;
+            }
+            
+            // Initialize with first music file if available
             if (this.musicFiles.length > 0) {
-                this.currentMusic = this.musicFiles[0];
-                this.currentMusicIndex = 0;
+                // Keep current music if it exists in the new list
+                if (this.currentMusic && this.musicFiles.includes(this.currentMusic)) {
+                    this.currentMusicIndex = this.musicFiles.indexOf(this.currentMusic);
+                } else {
+                    this.currentMusic = this.musicFiles[0];
+                    this.currentMusicIndex = 0;
+                }
                 this.initAudio(this.currentMusic);
             }
         } catch (error) {
@@ -320,6 +338,99 @@ class Toolbar {
             }));
             this.alarms.forEach(alarm => this.setAlarmTimeout(alarm));
             this.displayAlarms();
+        }
+    }
+
+    async loadMusicFiles() {
+        try {
+            // Scan for new music files
+            await fetch('/api/music/scan');
+            
+            // Get updated music list
+            const response = await fetch('/api/music');
+            if (!response.ok) throw new Error('Failed to load music files');
+            
+            const files = await response.json();
+            this.musicFiles = files;
+            
+            // Update music list display
+            const musicList = document.getElementById('musicList');
+            if (musicList) {
+                musicList.innerHTML = '';
+                files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.textContent = file;
+                    li.onclick = () => this.playMusic(file);
+                    musicList.appendChild(li);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading music files:', error);
+        }
+    }
+
+    // Add new method for creating music count display
+    createMusicCountDisplay() {
+        const musicCountDiv = document.createElement('div');
+        musicCountDiv.className = 'music-count';
+        musicCountDiv.id = 'musicCount';
+        musicCountDiv.style.cssText = `
+            display: inline-block;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-right: 5px;
+            vertical-align: middle;
+        `;
+        
+        // Insert count at the beginning of the controller
+        const musicController = document.getElementById('musicController');
+        if (musicController) {
+            musicController.insertBefore(musicCountDiv, musicController.firstChild);
+        }
+    }
+
+    // Add new method for updating music player style
+    updateMusicPlayerStyle() {
+        const musicController = document.getElementById('musicController');
+        if (musicController) {
+            musicController.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 50px;
+                z-index: 99;
+                display: flex;
+                align-items: center;
+                background: transparent;
+                padding: 2px 5px;
+                border-radius: 3px;
+                font-size: 14px;
+                gap: 5px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            `;
+        }
+
+        // Ensure all control buttons are visible and styled properly
+        const buttons = musicController.querySelectorAll('button');
+        buttons.forEach(button => {
+            button.style.cssText = `
+                margin: 0 2px;
+                cursor: pointer;
+                background: none;
+                border: none;
+                padding: 2px 5px;
+            `;
+        });
+
+        // Style for current music name
+        const musicName = document.getElementById('currentMusicName');
+        if (musicName) {
+            musicName.style.cssText = `
+                margin: 0 5px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 200px;
+            `;
         }
     }
 }

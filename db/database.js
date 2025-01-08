@@ -15,75 +15,86 @@ const db = new sqlite3.Database(dbPath);
 // Initialize database
 function initDatabase() {
     return new Promise((resolve, reject) => {
-        db.serialize(() => {
-            // Create goals table with parent_id field
-            db.run(`CREATE TABLE IF NOT EXISTS goals (
-                id TEXT PRIMARY KEY,
-                content TEXT UNIQUE NOT NULL,
-                background_color TEXT DEFAULT '#f9f9f9',
-                type TEXT NOT NULL,
-                parent_id TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (parent_id) REFERENCES goals(id) ON DELETE CASCADE
-            )`, (err) => {
-                if (err) {
-                    console.error('Error creating goals table:', err);
-                    reject(err);
-                    return;
-                }
-                console.log('Goals table initialized');
-            });
+        const db = new sqlite3.Database(dbPath, (err) => {
+            if (err) {
+                console.error('Error connecting to database:', err);
+                reject(err);
+                return;
+            }
 
-            // Create links table
-            db.run(`CREATE TABLE IF NOT EXISTS links (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                url TEXT NOT NULL,
-                notes TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`, (err) => {
-                if (err) {
-                    console.error('Error creating links table:', err);
-                    reject(err);
-                    return;
-                }
-                console.log('Links table initialized');
-            });
+            console.log('Connected to database');
 
-            // Create cards table
-            db.run(`CREATE TABLE IF NOT EXISTS cards (
-                id TEXT PRIMARY KEY,
-                content TEXT,
-                background_color TEXT DEFAULT '#ffffff',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`, (err) => {
-                if (err) {
-                    console.error('Error creating cards table:', err);
-                    reject(err);
-                    return;
-                }
-                console.log('Cards table initialized');
-            });
+            // Enable foreign keys
+            db.run('PRAGMA foreign_keys = ON');
 
-            // Initialize atomic tasks table
-            db.run(`CREATE TABLE IF NOT EXISTS atomic_tasks (
-                id TEXT PRIMARY KEY,
-                content TEXT NOT NULL,
-                parent_id TEXT,
-                status TEXT DEFAULT 'running',
-                start_time INTEGER,
-                total_time INTEGER DEFAULT 0,
-                background_color TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(parent_id) REFERENCES goals(id)
-            )`, (err) => {
-                if (err) {
-                    console.error('Error creating atomic tasks table:', err);
-                    reject(err);
-                    return;
+            // Initialize tables
+            db.serialize(async () => {
+                try {
+                    // Initialize goals table
+                    await db.run(`
+                        CREATE TABLE IF NOT EXISTS goals (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            content TEXT NOT NULL,
+                            type TEXT NOT NULL,
+                            color TEXT,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            completed_at DATETIME
+                        )
+                    `);
+                    console.log('Initialized goals table');
+
+                    // Initialize links table
+                    await db.run(`
+                        CREATE TABLE IF NOT EXISTS links (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT NOT NULL,
+                            url TEXT NOT NULL,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )
+                    `);
+                    console.log('Initialized links table');
+
+                    // Initialize cards table
+                    await db.run(`
+                        CREATE TABLE IF NOT EXISTS cards (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            content TEXT NOT NULL,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )
+                    `);
+                    console.log('Initialized cards table');
+
+                    // Initialize atomic_tasks table
+                    await db.run(`
+                        CREATE TABLE IF NOT EXISTS atomic_tasks (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            content TEXT NOT NULL,
+                            goal_id INTEGER,
+                            status TEXT DEFAULT 'pending',
+                            total_time INTEGER DEFAULT 0,
+                            start_time INTEGER,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            completed_at DATETIME,
+                            FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE
+                        )
+                    `);
+                    console.log('Initialized atomic_tasks table');
+
+                    // Initialize music_files table
+                    await db.run(`
+                        CREATE TABLE IF NOT EXISTS music_files (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            filename TEXT NOT NULL UNIQUE,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )
+                    `);
+                    console.log('Initialized music_files table');
+
+                    resolve(db);
+                } catch (error) {
+                    console.error('Error initializing tables:', error);
+                    reject(error);
                 }
-                console.log('Atomic tasks table initialized');
-                resolve();
             });
         });
     });

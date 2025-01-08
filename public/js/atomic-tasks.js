@@ -177,19 +177,37 @@ class AtomicTasksManager {
             clearInterval(this.intervals.get(taskId));
         }
 
-        const updateTime = () => {
-            const task = this.tasks.get(taskId);
-            if (!task || task.status !== 'running') return;
+        const task = this.tasks.get(taskId);
+        if (!task) return;
 
-            const timeElement = document.querySelector(`#task-${taskId} .task-time`);
-            if (!timeElement) return;
+        // Update the display immediately
+        const timeElement = document.querySelector(`#task-${taskId} .task-time span`);
+        if (timeElement) {
+            timeElement.textContent = this.formatTime(task.total_time || 0);
+        }
 
-            const totalTime = task.total_time + (Date.now() - startTime);
-            timeElement.textContent = this.formatTime(totalTime);
-        };
+        // Only start interval if task is running
+        if (task.status === 'running') {
+            const updateTime = () => {
+                const currentTask = this.tasks.get(taskId);
+                if (!currentTask || currentTask.status !== 'running') {
+                    clearInterval(this.intervals.get(taskId));
+                    this.intervals.delete(taskId);
+                    return;
+                }
 
-        this.intervals.set(taskId, setInterval(updateTime, 1000));
-        updateTime();
+                const elapsed = Date.now() - startTime;
+                const totalTime = (currentTask.total_time || 0) + elapsed;
+
+                const timeElement = document.querySelector(`#task-${taskId} .task-time span`);
+                if (timeElement) {
+                    timeElement.textContent = this.formatTime(totalTime);
+                }
+            };
+
+            this.intervals.set(taskId, setInterval(updateTime, 1000));
+            updateTime();
+        }
     }
 
     async updateTaskStatus(taskId, status) {
@@ -208,6 +226,7 @@ class AtomicTasksManager {
                 body: JSON.stringify({ 
                     status, 
                     totalTime,
+                    start_time: status === 'running' ? Date.now() : null,
                     completed_at: status === 'completed' ? Date.now() : null
                 })
             });
@@ -218,6 +237,10 @@ class AtomicTasksManager {
                 task.completed_at = Date.now();
                 this.completedTasks.set(taskId, task);
                 this.tasks.delete(taskId);
+                if (this.intervals.has(taskId)) {
+                    clearInterval(this.intervals.get(taskId));
+                    this.intervals.delete(taskId);
+                }
             }
             
             await this.loadTasks();
