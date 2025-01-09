@@ -29,6 +29,17 @@ class AtomicTasksManager {
             if (!response.ok) throw new Error('Failed to load tasks');
             const tasks = await response.json();
             
+            // Store current running states before updating
+            const runningStates = new Map();
+            this.tasks.forEach((task, id) => {
+                if (task.status === 'running') {
+                    runningStates.set(id, {
+                        elapsed_since_start: task.elapsed_since_start,
+                        start_time: task.start_time
+                    });
+                }
+            });
+            
             this.tasks.clear();
             this.completedTasks.clear();
             
@@ -36,10 +47,13 @@ class AtomicTasksManager {
                 if (task.status === 'completed') {
                     this.completedTasks.set(task.id, task);
                 } else {
-                    this.tasks.set(task.id, task);
-                    if (task.status === 'running') {
-                        this.startTimer(task.id, task.start_time);
+                    // Restore running state if exists
+                    if (task.status === 'running' && runningStates.has(task.id)) {
+                        const state = runningStates.get(task.id);
+                        task.elapsed_since_start = state.elapsed_since_start;
+                        task.start_time = state.start_time;
                     }
+                    this.tasks.set(task.id, task);
                 }
             }
             
@@ -151,7 +165,6 @@ class AtomicTasksManager {
                     clearInterval(this.intervals.get(taskId));
                     this.intervals.delete(taskId);
                 }
-                task.elapsed_since_start = 0; // Reset elapsed time
             }
 
             const response = await fetch(`/api/atomic-tasks/${taskId}`, {
@@ -179,12 +192,16 @@ class AtomicTasksManager {
 
             // Update task in memory
             task.total_time = newTime;
+            task.elapsed_since_start = 0;
+            
             if (task.status === 'running') {
                 task.start_time = Date.now();
-                this.startTimer(taskId, Date.now());
+                this.startTimer(taskId, task.start_time);
             }
             
-            await this.loadTasks();
+            // Update display without reloading all tasks
+            this.displayTasks();
+            this.updateWeekSummary();
         } catch (error) {
             console.error('Error updating task time:', error);
             alert('Failed to update task time');
@@ -210,7 +227,9 @@ class AtomicTasksManager {
         if (task.status === 'running') {
             const startTimeStamp = startTime || Date.now();
             task.start_time = startTimeStamp;
-            task.elapsed_since_start = 0; // Track elapsed time since last start
+            if (!task.elapsed_since_start) {
+                task.elapsed_since_start = 0;
+            }
 
             const updateTime = () => {
                 const currentTask = this.tasks.get(taskId);
@@ -221,11 +240,11 @@ class AtomicTasksManager {
                 }
 
                 currentTask.elapsed_since_start = Date.now() - startTimeStamp;
-                const totalTime = (currentTask.total_time || 0) + currentTask.elapsed_since_start;
+                const displayTime = (currentTask.total_time || 0) + currentTask.elapsed_since_start;
 
                 const timeElement = document.querySelector(`#task-${taskId} .task-time span`);
                 if (timeElement) {
-                    timeElement.textContent = this.formatTime(totalTime);
+                    timeElement.textContent = this.formatTime(displayTime);
                 }
             };
 
@@ -239,18 +258,18 @@ class AtomicTasksManager {
             const task = this.tasks.get(taskId);
             if (!task) return;
 
+            // Clear interval first to prevent any ongoing updates
+            if (this.intervals.has(taskId)) {
+                clearInterval(this.intervals.get(taskId));
+                this.intervals.delete(taskId);
+            }
+
             let totalTime = task.total_time || 0;
             
             // Only update total_time if we're pausing or completing a running task
             if (status !== 'running' && task.status === 'running' && task.elapsed_since_start) {
                 totalTime += task.elapsed_since_start;
                 task.elapsed_since_start = 0;
-            }
-
-            // Clear interval if pausing or completing
-            if (status !== 'running' && this.intervals.has(taskId)) {
-                clearInterval(this.intervals.get(taskId));
-                this.intervals.delete(taskId);
             }
 
             const response = await fetch(`/api/atomic-tasks/${taskId}`, {
@@ -273,14 +292,17 @@ class AtomicTasksManager {
             } else {
                 task.status = status;
                 task.total_time = totalTime;
-                task.start_time = status === 'running' ? Date.now() : null;
                 
                 if (status === 'running') {
-                    this.startTimer(taskId, Date.now());
+                    task.start_time = Date.now();
+                    task.elapsed_since_start = 0;
+                    this.startTimer(taskId, task.start_time);
                 }
             }
             
-            await this.loadTasks();
+            // Update display without reloading all tasks
+            this.displayTasks();
+            this.updateWeekSummary();
         } catch (error) {
             console.error('Error updating task:', error);
             alert('Failed to update task');
