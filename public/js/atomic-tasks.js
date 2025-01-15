@@ -400,7 +400,7 @@ class AtomicTasksManager {
 
             const deleteButton = document.createElement('button');
             deleteButton.className = 'task-button delete-button';
-            deleteButton.textContent = '× Delete';
+            deleteButton.textContent = '× Del';
             deleteButton.onclick = () => this.deleteTask(task.id);
             actions.appendChild(deleteButton);
 
