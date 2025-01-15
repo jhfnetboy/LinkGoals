@@ -255,6 +255,9 @@ class AtomicTasksManager {
 
     async updateTaskStatus(taskId, status) {
         try {
+            // 添加操作日志
+            console.log(`Task ${taskId} status changing to: ${status}`);
+            
             const task = this.tasks.get(taskId);
             if (!task) return;
 
@@ -270,6 +273,8 @@ class AtomicTasksManager {
             if (status !== 'running' && task.status === 'running' && task.elapsed_since_start) {
                 totalTime += task.elapsed_since_start;
                 task.elapsed_since_start = 0;
+                // 添加时间更新日志
+                console.log(`Task ${taskId} total time updated to: ${this.formatTime(totalTime)}`);
             }
 
             const response = await fetch(`/api/atomic-tasks/${taskId}`, {
@@ -285,6 +290,9 @@ class AtomicTasksManager {
 
             if (!response.ok) throw new Error('Failed to update task');
             
+            // 添加状态更新成功日志
+            console.log(`Task ${taskId} status successfully updated to: ${status}`);
+
             if (status === 'completed') {
                 task.completed_at = Date.now();
                 this.completedTasks.set(taskId, task);
@@ -297,6 +305,8 @@ class AtomicTasksManager {
                     task.start_time = Date.now();
                     task.elapsed_since_start = 0;
                     this.startTimer(taskId, task.start_time);
+                    // 添加计时器启动日志
+                    console.log(`Timer started for task ${taskId}`);
                 }
             }
             
